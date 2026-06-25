@@ -18,7 +18,6 @@ la primera version mantiene copias en `static/data/`:
 - `estimaciones_nacionales.parquet`
 - `estimaciones_provinciales.parquet`
 - `simulaciones_nacionales.parquet`
-- `simulaciones_provinciales.parquet`
 - `provincias_spain.geojson`
 
 La capa `src/lib/data/` normaliza los nombres reales de columnas a tipos internos antes de que

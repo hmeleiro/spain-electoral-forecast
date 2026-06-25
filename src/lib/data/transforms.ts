@@ -19,7 +19,6 @@ import type {
   RawPreviousProvinceResultRow,
   RawPreviousResultRow,
   RawProvinceEstimateRow,
-  RawProvinceSimulationRow,
   ScenarioSummary,
   SeatDistribution,
   SimulationResult
@@ -33,7 +32,6 @@ export const SOURCE_FILES = {
   nationalScenarios: 'escenarios_nacionales.parquet',
   firstForceProbabilities: 'first_force_probability.parquet',
   nationalSimulations: 'simulaciones_nacionales.parquet',
-  provinceSimulations: 'simulaciones_provinciales.parquet',
   previousNationalResults: 'results_prev.parquet',
   previousProvinceResults: 'results_prev_prov.parquet'
 };
@@ -253,24 +251,6 @@ export function normalizeNationalSimulation(row: RawNationalSimulationRow): Simu
     label: config.label,
     color: config.color,
     votes: numberOrNull(row.votos),
-    seats: numberOrNull(row.seats),
-    isElectoral: isElectoralParty(row.partido)
-  };
-}
-
-export function normalizeProvinceSimulation(row: RawProvinceSimulationRow): SimulationResult {
-  const config = getPartyConfig(row.partido);
-  const code = `${row.codigo_provincia}`.padStart(2, '0');
-
-  return {
-    date: dateToString(row.fecha),
-    simulationId: Number(row.sim),
-    party: config.id,
-    label: config.label,
-    color: config.color,
-    provinceCode: code,
-    provinceName: getProvinceName(code),
-    votes: numberOrNull(row.votos_salida),
     seats: numberOrNull(row.seats),
     isElectoral: isElectoralParty(row.partido)
   };

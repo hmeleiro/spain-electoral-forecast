@@ -32,7 +32,6 @@ import type {
   RawPreviousProvinceResultRow,
   RawPreviousResultRow,
   RawProvinceEstimateRow,
-  RawProvinceSimulationRow,
   SimulationResult
 } from '$lib/data/schema';
 import {
@@ -47,7 +46,6 @@ import {
   normalizePreviousProvinceResults,
   normalizePreviousResults,
   normalizeProvinceEstimates,
-  normalizeProvinceSimulation,
   SOURCE_FILES
 } from '$lib/data/transforms';
 
@@ -194,27 +192,6 @@ export async function loadNationalSimulations(date?: string): Promise<Simulation
   } catch (error) {
     console.warn('Usando simulaciones nacionales JSON derivadas por error al leer Parquet', error);
     return loadNationalSimulationsFromJson().catch(() => mockNationalSimulations);
-  }
-}
-
-export async function loadProvinceSimulations(date?: string, provinceCode?: string): Promise<SimulationResult[]> {
-  try {
-    const filters = [
-      `fecha = ${date ? `DATE '${date}'` : `(select max(fecha) from '${SOURCE_FILES.provinceSimulations}')`}`
-    ];
-
-    if (provinceCode) {
-      filters.push(`codigo_provincia = '${provinceCode.padStart(2, '0')}'`);
-    }
-
-    const rows = await queryRows<RawProvinceSimulationRow>(
-      `select cast(fecha as varchar) as fecha, * exclude(fecha) from '${SOURCE_FILES.provinceSimulations}'
-       where ${filters.join(' and ')}`
-    );
-    return rows.map(normalizeProvinceSimulation);
-  } catch (error) {
-    console.warn('Usando simulaciones provinciales mock por error al leer Parquet', error);
-    return mockNationalSimulations;
   }
 }
 

@@ -194,12 +194,3 @@ export type RawNationalSimulationRow = {
   votos: number | null;
   seats: number | null;
 };
-
-export type RawProvinceSimulationRow = {
-  fecha: unknown;
-  sim: number;
-  codigo_provincia: string;
-  partido: string;
-  votos_salida: number | null;
-  seats: number | null;
-};

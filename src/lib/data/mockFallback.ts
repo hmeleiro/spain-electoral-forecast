@@ -89,8 +89,7 @@ export const mockMetadata: ModelMetadata = {
     provinceEstimates: 'mock',
     nationalScenarios: 'mock',
     firstForceProbabilities: 'mock',
-    nationalSimulations: 'mock',
-    provinceSimulations: 'mock'
+    nationalSimulations: 'mock'
   },
   partyConfig: mockNationalEstimate.parties.map((party) => getPartyConfig(party.party))
 };

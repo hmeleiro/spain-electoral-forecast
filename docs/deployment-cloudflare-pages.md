@@ -59,7 +59,6 @@ provincias_spain.geojson
 results_prev.parquet
 results_prev_prov.parquet
 simulaciones_nacionales.parquet
-simulaciones_provinciales.parquet
 derived/estimaciones_nacionales.json
 derived/estimaciones_provinciales.json
 derived/simulaciones_nacionales_latest.json

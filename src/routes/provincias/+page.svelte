@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import SeatProjectionChart from '$lib/components/charts/SeatProjectionChart.svelte';
-  import SimulationHistogram from '$lib/components/charts/SimulationHistogram.svelte';
   import VoteShareChart from '$lib/components/charts/VoteShareChart.svelte';
   import LoadingState from '$lib/components/layout/LoadingState.svelte';
   import ProvinceMap from '$lib/components/maps/ProvinceMap.svelte';
@@ -11,17 +10,15 @@
     loadNationalEstimates,
     loadPreviousProvinceResults,
     loadProvinceEstimates,
-    loadProvinceMapCollection,
-    loadProvinceSimulations
+    loadProvinceMapCollection
   } from '$lib/data';
   import type {
     NationalEstimate,
     PreviousProvinceResult,
     ProvinceEstimate,
-    ProvinceMapCollection,
-    SeatDistribution
+    ProvinceMapCollection
   } from '$lib/data/schema';
-  import { buildSeatDistributions, electoralParties } from '$lib/data/transforms';
+  import { electoralParties } from '$lib/data/transforms';
   import { formatDate, formatPercent, formatSeats } from '$lib/utils/format';
 
   const provinceOptions = getAvailableProvinces();
@@ -35,7 +32,6 @@
   let previousProvinceRows: PreviousProvinceResult[] = [];
   let national: NationalEstimate | null = null;
   let mapCollection: ProvinceMapCollection | null = null;
-  let distributions: SeatDistribution[] = [];
   let lastLoadedProvince = '';
 
   $: selectedProvince = selectedProvince.padStart(2, '0');
@@ -46,19 +42,11 @@
   $: nationalComparable =
     national?.parties.filter((party) => provinceParties.some((provinceParty) => provinceParty.party === party.party)) ?? [];
 
-  async function loadProvinceDetail() {
+  function loadProvinceDetail() {
     const localRows = allProvinceEstimates.filter((estimate) => estimate.provinceCode === selectedProvince);
     const localPreviousRows = allPreviousProvinceResults.filter((result) => result.provinceCode === selectedProvince);
-    const localParties = electoralParties(localRows).sort(
-      (a, b) => (b.voteShareMean ?? -1) - (a.voteShareMean ?? -1) || (b.seatsMean ?? -1) - (a.seatsMean ?? -1)
-    );
     provinceRows = localRows;
     previousProvinceRows = localPreviousRows;
-    const simulations = await loadProvinceSimulations(latestDate, selectedProvince);
-    distributions = buildSeatDistributions(
-      simulations,
-      localParties.slice(0, 6).map((party) => party.party)
-    );
     lastLoadedProvince = selectedProvince;
   }
 
@@ -88,7 +76,7 @@
     allPreviousProvinceResults = previousProvinceResults;
     national = nationalEstimate;
     mapCollection = await loadProvinceMapCollection(provinceEstimates, previousProvinceEstimates);
-    await loadProvinceDetail();
+    loadProvinceDetail();
     loading = false;
   });
 
@@ -166,30 +154,24 @@
       </section>
     </div>
 
-    <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <section class="panel p-5">
-        <SimulationHistogram {distributions} />
-      </section>
-
-      <section class="panel p-5">
-        <h2 class="text-xl font-semibold text-[var(--color-text)]">Comparacion nacional</h2>
-        <div class="mt-4 space-y-3">
-          {#each provinceParties.slice(0, 7) as party}
-            {@const nationalParty = nationalComparable.find((candidate) => candidate.party === party.party)}
-            <div>
-              <div class="flex items-center justify-between gap-4 text-sm">
-                <span class="font-bold" style={`color:${party.color}`}>{party.label}</span>
-                <span class="tabular-nums text-[#5e5a54]">
-                  {formatPercent(party.voteShareMean)} prov. · {formatPercent(nationalParty?.voteShareMean)} nac.
-                </span>
-              </div>
-              <div class="mt-1 h-2 overflow-hidden rounded bg-[#e6ded2]">
-                <div class="h-full rounded" style={`width:${Math.min(100, party.voteShareMean ?? 0)}%;background:${party.color}`}></div>
-              </div>
+    <section class="panel mt-8 p-5">
+      <h2 class="text-xl font-semibold text-[var(--color-text)]">Comparacion nacional</h2>
+      <div class="mt-4 space-y-3">
+        {#each provinceParties.slice(0, 7) as party}
+          {@const nationalParty = nationalComparable.find((candidate) => candidate.party === party.party)}
+          <div>
+            <div class="flex items-center justify-between gap-4 text-sm">
+              <span class="font-bold" style={`color:${party.color}`}>{party.label}</span>
+              <span class="tabular-nums text-[#5e5a54]">
+                {formatPercent(party.voteShareMean)} prov. · {formatPercent(nationalParty?.voteShareMean)} nac.
+              </span>
             </div>
-          {/each}
-        </div>
-      </section>
-    </div>
+            <div class="mt-1 h-2 overflow-hidden rounded bg-[#e6ded2]">
+              <div class="h-full rounded" style={`width:${Math.min(100, party.voteShareMean ?? 0)}%;background:${party.color}`}></div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
   {/if}
 </section>
