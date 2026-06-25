@@ -1,5 +1,5 @@
 <script lang="ts">
-  export let label = 'Cargando datos electorales';
+  export let label = 'Cargando datos';
 </script>
 
 <div class="panel flex min-h-36 items-center justify-center p-8 text-center text-sm text-[#6f6860]">
