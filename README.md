@@ -17,6 +17,10 @@ la primera version mantiene copias en `static/data/`:
 
 - `estimaciones_nacionales.parquet`
 - `estimaciones_provinciales.parquet`
+- `escenarios_nacionales.parquet`
+- `first_force_probability.parquet`
+- `results_prev.parquet`
+- `results_prev_prov.parquet`
 - `simulaciones_nacionales.parquet`
 - `provincias_spain.geojson`
 
@@ -25,6 +29,12 @@ los componentes visuales reciban datos.
 
 `static/data/derived/` contiene JSON generado desde esos Parquet. La app lo usa solo como
 fallback real si DuckDB-WASM no puede abrir los Parquet en el navegador; no son datos mock.
+
+Para regenerar esos JSON derivados:
+
+```bash
+npm run generate:derived
+```
 
 ## Desarrollo
 

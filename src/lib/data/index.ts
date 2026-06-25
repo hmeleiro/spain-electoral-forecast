@@ -3,10 +3,14 @@ import { dataFileUrl } from '$lib/config/data';
 import { getAvailableProvinces as listAllProvinces } from '$lib/data/provinces';
 import { queryRows } from '$lib/data/parquetClient';
 import {
+  loadFirstForceProbabilitySeriesFromJson,
   loadMetadataFromJson,
   loadNationalEstimatesFromJson,
+  loadNationalScenarioSeriesFromJson,
   loadNationalSimulationsFromJson,
   loadNationalTrendFromJson,
+  loadPreviousNationalResultsFromJson,
+  loadPreviousProvinceResultsFromJson,
   loadProvinceEstimatesFromJson
 } from '$lib/data/jsonFallback';
 import {
@@ -125,7 +129,7 @@ export async function loadNationalScenarioSeries(): Promise<NationalScenarioSumm
     return normalizeNationalScenarioRows(rows);
   } catch (error) {
     console.warn('Escenarios nacionales agregados no disponibles', error);
-    return [];
+    return loadNationalScenarioSeriesFromJson().catch(() => []);
   }
 }
 
@@ -138,7 +142,7 @@ export async function loadFirstForceProbabilitySeries(): Promise<FirstForceProba
     return normalizeFirstForceProbabilityRows(rows);
   } catch (error) {
     console.warn('Probabilidades de primera fuerza no disponibles', error);
-    return [];
+    return loadFirstForceProbabilitySeriesFromJson().catch(() => []);
   }
 }
 
@@ -165,7 +169,7 @@ export async function loadPreviousNationalResults(): Promise<PreviousResult[]> {
     return normalizePreviousResults(rows);
   } catch (error) {
     console.warn('Resultados nacionales anteriores no disponibles', error);
-    return [];
+    return loadPreviousNationalResultsFromJson().catch(() => []);
   }
 }
 
@@ -178,7 +182,7 @@ export async function loadPreviousProvinceResults(): Promise<PreviousProvinceRes
     return normalizePreviousProvinceResults(rows);
   } catch (error) {
     console.warn('Resultados provinciales anteriores no disponibles', error);
-    return [];
+    return loadPreviousProvinceResultsFromJson().catch(() => []);
   }
 }
 

@@ -55,12 +55,18 @@ Para que la aplicacion lea desde R2, publica estos objetos bajo el prefijo
 ```text
 estimaciones_nacionales.parquet
 estimaciones_provinciales.parquet
+escenarios_nacionales.parquet
+first_force_probability.parquet
 provincias_spain.geojson
 results_prev.parquet
 results_prev_prov.parquet
 simulaciones_nacionales.parquet
+derived/escenarios_nacionales.json
 derived/estimaciones_nacionales.json
 derived/estimaciones_provinciales.json
+derived/first_force_probability.json
+derived/results_prev.json
+derived/results_prev_prov.json
 derived/simulaciones_nacionales_latest.json
 ```
 
@@ -68,6 +74,12 @@ Los JSON de `derived` no son obligatorios para el camino principal, pero si debe
 estar en R2 si quieres conservar el fallback real cuando DuckDB-WASM o la lectura
 de Parquet falle. Si no estan, la app caera al ultimo fallback mock en las vistas
 que lo tengan definido.
+
+Antes de subir datos a R2, regenera los JSON derivados desde los Parquet locales:
+
+```bash
+npm run generate:derived
+```
 
 Asegura que el bucket o dominio publico de R2 permite peticiones `GET` desde el
 dominio de la web. Para el MVP basta con servir ficheros estaticos publicos desde

@@ -60,7 +60,8 @@
   $: electoralNational = national ? electoralParties(national.parties) : [];
   $: topParties = electoralNational.slice(0, 5);
   $: leadingParty = topParties[0];
-  $: activeDate = hoveredTrendDate ?? national?.date ?? metadata?.latestDate ?? null;
+  $: initialCardDate = getInitialCardDate(national?.date ?? metadata?.latestDate ?? null);
+  $: activeDate = hoveredTrendDate ?? initialCardDate;
   $: activeTrendParties = activeDate ? getTrendPartiesForDate(activeDate) : [];
   $: activeLeadingParty = activeTrendParties[0] ?? leadingParty;
   $: activeScenarios = getScenariosForDate(activeDate);
@@ -131,6 +132,17 @@
 
     const rows = scenarioSeries.filter((scenario) => scenario.date === date);
     return emptyScenarios.map((scenario) => rows.find((row) => row.id === scenario.id) ?? scenario);
+  }
+
+  function getInitialCardDate(preferredDate: string | null): string | null {
+    const availableDates = [...new Set(scenarioSeries.map((scenario) => scenario.date))].sort();
+    if (!availableDates.length) return preferredDate;
+    if (preferredDate && availableDates.includes(preferredDate)) return preferredDate;
+    if (preferredDate) {
+      return availableDates.filter((date) => date <= preferredDate).at(-1) ?? availableDates.at(-1) ?? preferredDate;
+    }
+
+    return availableDates.at(-1) ?? null;
   }
 
   function getFirstForceProbability(date: string | null, partyId: string | undefined): number | null {

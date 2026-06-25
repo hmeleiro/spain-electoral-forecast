@@ -1,19 +1,31 @@
 import type {
+  FirstForceProbability,
   ModelMetadata,
   NationalEstimate,
+  NationalScenarioSummary,
   NationalTrendPoint,
+  PreviousProvinceResult,
+  PreviousResult,
   ProvinceEstimate,
+  RawFirstForceProbabilityRow,
   RawNationalEstimateRow,
+  RawNationalScenarioRow,
   RawNationalSimulationRow,
+  RawPreviousProvinceResultRow,
+  RawPreviousResultRow,
   RawProvinceEstimateRow,
   SimulationResult
 } from '$lib/data/schema';
 import { derivedDataFileUrl } from '$lib/config/data';
 import {
   buildModelMetadata,
+  normalizeFirstForceProbabilityRows,
   normalizeNationalEstimate,
+  normalizeNationalScenarioRows,
   normalizeNationalSimulation,
   normalizeNationalTrendRows,
+  normalizePreviousProvinceResults,
+  normalizePreviousResults,
   normalizeProvinceEstimates
 } from '$lib/data/transforms';
 
@@ -62,4 +74,24 @@ export async function loadProvinceEstimatesFromJson(date?: string): Promise<Prov
 export async function loadNationalSimulationsFromJson(): Promise<SimulationResult[]> {
   const rows = await loadJson<RawNationalSimulationRow>('simulaciones_nacionales_latest.json');
   return rows.map(normalizeNationalSimulation);
+}
+
+export async function loadNationalScenarioSeriesFromJson(): Promise<NationalScenarioSummary[]> {
+  const rows = await loadJson<RawNationalScenarioRow>('escenarios_nacionales.json');
+  return normalizeNationalScenarioRows(rows);
+}
+
+export async function loadFirstForceProbabilitySeriesFromJson(): Promise<FirstForceProbability[]> {
+  const rows = await loadJson<RawFirstForceProbabilityRow>('first_force_probability.json');
+  return normalizeFirstForceProbabilityRows(rows);
+}
+
+export async function loadPreviousNationalResultsFromJson(): Promise<PreviousResult[]> {
+  const rows = await loadJson<RawPreviousResultRow>('results_prev.json');
+  return normalizePreviousResults(rows);
+}
+
+export async function loadPreviousProvinceResultsFromJson(): Promise<PreviousProvinceResult[]> {
+  const rows = await loadJson<RawPreviousProvinceResultRow>('results_prev_prov.json');
+  return normalizePreviousProvinceResults(rows);
 }
