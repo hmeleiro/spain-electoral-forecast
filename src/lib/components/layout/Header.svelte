@@ -4,7 +4,7 @@
 
 <header class="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
   <div class="editorial-shell flex h-16 items-center justify-between gap-4">
-    <a href="https://spainelectoralproject.com/" class="flex items-center gap-2 text-[var(--color-text)] no-underline">
+    <a href="/" class="flex items-center gap-2 text-[var(--color-text)] no-underline">
       <span class="text-xl text-[var(--color-accent)]">◆</span>
       <div class="text-lg font-bold leading-none">
         Spain Electoral Project
