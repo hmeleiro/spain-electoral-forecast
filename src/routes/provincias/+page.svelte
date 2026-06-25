@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import SeatProjectionChart from '$lib/components/charts/SeatProjectionChart.svelte';
   import SimulationHistogram from '$lib/components/charts/SimulationHistogram.svelte';
@@ -20,7 +19,7 @@
   const provinceOptions = getAvailableProvinces();
 
   let loading = true;
-  let selectedProvince = $page.url.searchParams.get('provincia') ?? '28';
+  let selectedProvince = '28';
   let latestDate = '2026-04-05';
   let allProvinceEstimates: ProvinceEstimate[] = [];
   let allPreviousProvinceResults: PreviousProvinceResult[] = [];
@@ -55,6 +54,7 @@
   }
 
   onMount(async () => {
+    selectedProvince = new URLSearchParams(window.location.search).get('provincia') ?? selectedProvince;
     const metadata = await loadModelMetadata();
     latestDate = metadata.latestDate;
     const [provinceEstimates, nationalEstimate, previousProvinceResults] = await Promise.all([

@@ -46,11 +46,30 @@ Variables opcionales:
 
 ```bash
 PUBLIC_DATA_BASE_URL=/data
-PUBLIC_GEOJSON_PROVINCES_URL=
 ```
+
+## Despliegue en Cloudflare Pages
+
+El proyecto esta preparado para desplegarse como sitio estatico con
+`@sveltejs/adapter-static`.
+
+Configuracion recomendada:
+
+```text
+Framework preset: None
+Build command: npm run build
+Output directory: build
+PUBLIC_DATA_BASE_URL=https://data.spainelectoralproject.com/spain-electoral-forecast
+```
+
+En local, `PUBLIC_DATA_BASE_URL=/data` sigue leyendo de `static/data/`.
+En produccion, los Parquet, el GeoJSON y los JSON de `derived/` deben estar
+publicados en R2 bajo el mismo prefijo para mantener tambien el fallback JSON.
+
+Guia completa: [`docs/deployment-cloudflare-pages.md`](docs/deployment-cloudflare-pages.md).
 
 ## Nota sobre el mapa
 
-`ProvinceMap` carga `static/data/provincias_spain.geojson` y lo enriquece con la primera fuerza
+`ProvinceMap` carga `provincias_spain.geojson` desde `PUBLIC_DATA_BASE_URL` y lo enriquece con la primera fuerza
 provincial por porcentaje de voto. Si el GeoJSON no esta disponible, cae a una geometria
 esquematica temporal.

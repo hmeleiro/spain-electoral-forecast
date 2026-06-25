@@ -1,12 +1,10 @@
 import { browser } from '$app/environment';
-import { env } from '$env/dynamic/public';
 import * as duckdb from '@duckdb/duckdb-wasm';
+import { dataFileUrl } from '$lib/config/data';
 import { SOURCE_FILES } from '$lib/data/transforms';
 
 let dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 const registeredFiles = new Map<string, Promise<void>>();
-
-const dataBaseUrl = (env.PUBLIC_DATA_BASE_URL || '/data').replace(/\/$/, '');
 
 async function createDatabase(): Promise<duckdb.AsyncDuckDB> {
   if (!browser) {
@@ -30,11 +28,11 @@ async function createDatabase(): Promise<duckdb.AsyncDuckDB> {
 async function registerParquetFile(db: duckdb.AsyncDuckDB, fileName: string): Promise<void> {
   if (!registeredFiles.has(fileName)) {
     registeredFiles.set(fileName, (async () => {
-    const response = await fetch(`${dataBaseUrl}/${fileName}`);
-    if (!response.ok) {
-      throw new Error(`No se pudo descargar ${fileName}: ${response.status}`);
-    }
-    await db.registerFileBuffer(fileName, new Uint8Array(await response.arrayBuffer()));
+      const response = await fetch(dataFileUrl(fileName));
+      if (!response.ok) {
+        throw new Error(`No se pudo descargar ${fileName}: ${response.status}`);
+      }
+      await db.registerFileBuffer(fileName, new Uint8Array(await response.arrayBuffer()));
     })());
   }
 
@@ -72,5 +70,5 @@ export async function queryRows<T>(sql: string): Promise<T[]> {
 }
 
 export function parquetPath(fileName: string): string {
-  return `${dataBaseUrl}/${fileName}`;
+  return dataFileUrl(fileName);
 }

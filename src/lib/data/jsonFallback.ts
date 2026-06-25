@@ -8,6 +8,7 @@ import type {
   RawProvinceEstimateRow,
   SimulationResult
 } from '$lib/data/schema';
+import { derivedDataFileUrl } from '$lib/config/data';
 import {
   buildModelMetadata,
   normalizeNationalEstimate,
@@ -16,10 +17,8 @@ import {
   normalizeProvinceEstimates
 } from '$lib/data/transforms';
 
-const DERIVED_BASE = '/data/derived';
-
 async function loadJson<T>(fileName: string): Promise<T[]> {
-  const response = await fetch(`${DERIVED_BASE}/${fileName}`);
+  const response = await fetch(derivedDataFileUrl(fileName));
   if (!response.ok) {
     throw new Error(`No se pudo cargar fallback JSON ${fileName}: ${response.status}`);
   }
