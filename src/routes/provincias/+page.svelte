@@ -1,0 +1,157 @@
+<script lang="ts">
+  import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+  import SeatProjectionChart from '$lib/components/charts/SeatProjectionChart.svelte';
+  import SimulationHistogram from '$lib/components/charts/SimulationHistogram.svelte';
+  import VoteShareChart from '$lib/components/charts/VoteShareChart.svelte';
+  import LoadingState from '$lib/components/layout/LoadingState.svelte';
+  import {
+    getAvailableProvinces,
+    loadModelMetadata,
+    loadNationalEstimates,
+    loadPreviousProvinceResults,
+    loadProvinceEstimates,
+    loadProvinceSimulations
+  } from '$lib/data';
+  import type { NationalEstimate, PreviousProvinceResult, ProvinceEstimate, SeatDistribution } from '$lib/data/schema';
+  import { buildSeatDistributions, electoralParties } from '$lib/data/transforms';
+  import { formatDate, formatPercent, formatSeats } from '$lib/utils/format';
+
+  const provinceOptions = getAvailableProvinces();
+
+  let loading = true;
+  let selectedProvince = $page.url.searchParams.get('provincia') ?? '28';
+  let latestDate = '2026-04-05';
+  let allProvinceEstimates: ProvinceEstimate[] = [];
+  let allPreviousProvinceResults: PreviousProvinceResult[] = [];
+  let provinceRows: ProvinceEstimate[] = [];
+  let previousProvinceRows: PreviousProvinceResult[] = [];
+  let national: NationalEstimate | null = null;
+  let distributions: SeatDistribution[] = [];
+  let lastLoadedProvince = '';
+
+  $: selectedProvince = selectedProvince.padStart(2, '0');
+  $: selectedName = provinceOptions.find((province) => province.code === selectedProvince)?.name ?? 'Madrid';
+  $: provinceParties = electoralParties(provinceRows).sort(
+    (a, b) => (b.voteShareMean ?? -1) - (a.voteShareMean ?? -1) || (b.seatsMean ?? -1) - (a.seatsMean ?? -1)
+  );
+  $: nationalComparable =
+    national?.parties.filter((party) => provinceParties.some((provinceParty) => provinceParty.party === party.party)) ?? [];
+
+  async function loadProvinceDetail() {
+    const localRows = allProvinceEstimates.filter((estimate) => estimate.provinceCode === selectedProvince);
+    const localPreviousRows = allPreviousProvinceResults.filter((result) => result.provinceCode === selectedProvince);
+    const localParties = electoralParties(localRows).sort(
+      (a, b) => (b.voteShareMean ?? -1) - (a.voteShareMean ?? -1) || (b.seatsMean ?? -1) - (a.seatsMean ?? -1)
+    );
+    provinceRows = localRows;
+    previousProvinceRows = localPreviousRows;
+    const simulations = await loadProvinceSimulations(latestDate, selectedProvince);
+    distributions = buildSeatDistributions(
+      simulations,
+      localParties.slice(0, 6).map((party) => party.party)
+    );
+    lastLoadedProvince = selectedProvince;
+  }
+
+  onMount(async () => {
+    const metadata = await loadModelMetadata();
+    latestDate = metadata.latestDate;
+    const [provinceEstimates, nationalEstimate, previousProvinceResults] = await Promise.all([
+      loadProvinceEstimates(latestDate),
+      loadNationalEstimates(latestDate),
+      loadPreviousProvinceResults()
+    ]);
+
+    allProvinceEstimates = provinceEstimates;
+    allPreviousProvinceResults = previousProvinceResults;
+    national = nationalEstimate;
+    await loadProvinceDetail();
+    loading = false;
+  });
+
+  $: if (!loading && allProvinceEstimates.length && selectedProvince !== lastLoadedProvince) {
+    loadProvinceDetail();
+  }
+</script>
+
+<svelte:head>
+  <title>Provincias · Spain Electoral Forecast</title>
+</svelte:head>
+
+<section class="editorial-shell py-10 md:py-14">
+  <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p class="eyebrow">Analisis provincial</p>
+      <h1 class="mt-3 text-4xl font-bold leading-tight text-[var(--color-text)] md:text-5xl">{selectedName}</h1>
+      <p class="mt-3 text-sm text-[var(--color-text-secondary)]">Estimacion de {formatDate(latestDate)}</p>
+    </div>
+    <label class="text-sm font-bold text-[var(--color-text-secondary)]">
+      Provincia
+      <select bind:value={selectedProvince} class="mt-2 block rounded border border-[#c9c0b3] bg-white px-3 py-2">
+        {#each provinceOptions as province}
+          <option value={province.code}>{province.name}</option>
+        {/each}
+      </select>
+    </label>
+  </div>
+
+  {#if loading}
+    <div class="mt-8">
+      <LoadingState />
+    </div>
+  {:else}
+    <div class="mt-8 grid gap-4 md:grid-cols-3">
+      {#each provinceParties.slice(0, 3) as party}
+        <article class="panel p-5">
+          <p class="text-sm font-bold" style={`color:${party.color}`}>{party.label}</p>
+          <p class="mt-2 text-3xl font-bold text-[var(--color-text)]">{formatPercent(party.voteShareMean)}</p>
+          <p class="mt-2 text-sm text-[var(--color-text-secondary)]">{formatSeats(party.seatsMean)} escaños medios</p>
+        </article>
+      {/each}
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-2">
+      <section class="panel p-5">
+        <div class="mb-4">
+          <h2 class="text-xl font-semibold text-[var(--color-text)]">Voto por partido</h2>
+          <p class="text-sm text-[var(--color-text-secondary)]">Estimacion provincial; marca vertical: resultado 23J.</p>
+        </div>
+        <VoteShareChart parties={provinceParties} previousResults={previousProvinceRows} />
+      </section>
+      <section class="panel p-5">
+        <div class="mb-4">
+          <h2 class="text-xl font-semibold text-[var(--color-text)]">Escaños provinciales</h2>
+          <p class="text-sm text-[var(--color-text-secondary)]">Media de escanos por candidatura; marca vertical: 23J.</p>
+        </div>
+        <SeatProjectionChart parties={provinceParties} previousResults={previousProvinceRows} showMajorityLine={false} />
+      </section>
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <section class="panel p-5">
+        <SimulationHistogram {distributions} />
+      </section>
+
+      <section class="panel p-5">
+        <h2 class="text-xl font-semibold text-[var(--color-text)]">Comparacion nacional</h2>
+        <div class="mt-4 space-y-3">
+          {#each provinceParties.slice(0, 7) as party}
+            {@const nationalParty = nationalComparable.find((candidate) => candidate.party === party.party)}
+            <div>
+              <div class="flex items-center justify-between gap-4 text-sm">
+                <span class="font-bold" style={`color:${party.color}`}>{party.label}</span>
+                <span class="tabular-nums text-[#5e5a54]">
+                  {formatPercent(party.voteShareMean)} prov. · {formatPercent(nationalParty?.voteShareMean)} nac.
+                </span>
+              </div>
+              <div class="mt-1 h-2 overflow-hidden rounded bg-[#e6ded2]">
+                <div class="h-full rounded" style={`width:${Math.min(100, party.voteShareMean ?? 0)}%;background:${party.color}`}></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </section>
+    </div>
+  {/if}
+</section>
