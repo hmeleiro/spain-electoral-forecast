@@ -5,12 +5,16 @@ import type {
   NationalEstimate,
   NationalTrendPoint,
   PartyEstimate,
+  FirstForceProbability,
   PreviousProvinceResult,
   PreviousResult,
+  NationalScenarioSummary,
   ProvinceEstimate,
   ProvinceMapCollection,
   ProvinceMapFeature,
+  RawFirstForceProbabilityRow,
   RawNationalEstimateRow,
+  RawNationalScenarioRow,
   RawNationalSimulationRow,
   RawPreviousProvinceResultRow,
   RawPreviousResultRow,
@@ -26,11 +30,23 @@ import { extent, integerHistogram, mean } from '$lib/utils/stats';
 export const SOURCE_FILES = {
   nationalEstimates: 'estimaciones_nacionales.parquet',
   provinceEstimates: 'estimaciones_provinciales.parquet',
+  nationalScenarios: 'escenarios_nacionales.parquet',
+  firstForceProbabilities: 'first_force_probability.parquet',
   nationalSimulations: 'simulaciones_nacionales.parquet',
   provinceSimulations: 'simulaciones_provinciales.parquet',
   previousNationalResults: 'results_prev.parquet',
   previousProvinceResults: 'results_prev_prov.parquet'
 };
+
+const SCENARIO_DEFINITIONS = [
+  { id: 'right', sourceIds: ['Derecha', 'right'], label: 'PP + VOX + UPN + SALF', parties: ['PP', 'VOX', 'UPN', 'SALF'] },
+  {
+    id: 'incumbent',
+    sourceIds: ['Izquierda', 'incumbent'],
+    label: 'PSOE + Sumar + aliados investidura',
+    parties: ['PSOE', 'SUMAR', 'Podemos', 'ERC', 'Junts', 'EH Bildu', 'BNG', 'PNV']
+  }
+];
 
 export function dateToString(value: unknown): string {
   if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString().slice(0, 10);
@@ -111,6 +127,40 @@ export function normalizeNationalTrendRows(rows: RawNationalEstimateRow[]): Nati
       };
     })
     .filter((row) => row.isElectoral)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.party.localeCompare(b.party));
+}
+
+export function normalizeNationalScenarioRows(rows: RawNationalScenarioRow[]): NationalScenarioSummary[] {
+  return rows
+    .map((row) => {
+      const definition = getScenarioDefinition(row.scenario_id);
+      return {
+        date: dateToString(row.fecha),
+        id: definition.id,
+        label: definition.label,
+        parties: definition.parties,
+        seatsMean: numberOrNull(row.seats_median),
+        seatsMin: numberOrNull(row.seats_min),
+        seatsMax: numberOrNull(row.seats_max),
+        majorityProbability: numberOrNull(row.majority_probability)
+      };
+    })
+    .sort((a, b) => scenarioSortOrder(a.id) - scenarioSortOrder(b.id));
+}
+
+export function normalizeFirstForceProbabilityRows(rows: RawFirstForceProbabilityRow[]): FirstForceProbability[] {
+  return rows
+    .map((row) => {
+      const config = getPartyConfig(row.partido);
+      return {
+        date: dateToString(row.fecha),
+        party: config.id,
+        label: config.label,
+        color: config.color,
+        probability: numberOrNull(row.first_force_probability)
+      };
+    })
+    .filter((row) => isElectoralParty(row.party))
     .sort((a, b) => a.date.localeCompare(b.date) || a.party.localeCompare(b.party));
 }
 
@@ -352,16 +402,7 @@ export function buildScenarioSummaries(simulations: SimulationResult[]): Scenari
     (simulation) => simulation.simulationId
   );
 
-  const scenarios = [
-    { id: 'right', label: 'PP + VOX + UPN + SALF', parties: ['PP', 'VOX', 'UPN', 'SALF'] },
-    {
-      id: 'incumbent',
-      label: 'PSOE + Sumar + aliados investidura',
-      parties: ['PSOE', 'SUMAR', 'Podemos', 'ERC', 'Junts', 'EH Bildu', 'BNG', 'PNV']
-    }
-  ];
-
-  return scenarios.map((scenario) => {
+  return SCENARIO_DEFINITIONS.map((scenario) => {
     const totals = [...bySimulation.values()].map((rows) =>
       rows
         .filter((row) => scenario.parties.includes(row.party))
@@ -381,6 +422,34 @@ export function buildScenarioSummaries(simulations: SimulationResult[]): Scenari
         : 0
     };
   });
+}
+
+export function emptyScenarioSummaries(): ScenarioSummary[] {
+  return SCENARIO_DEFINITIONS.map((scenario) => ({
+    id: scenario.id,
+    label: scenario.label,
+    parties: scenario.parties,
+    seatsMean: null,
+    seatsMin: null,
+    seatsMax: null,
+    majorityProbability: null
+  }));
+}
+
+function getScenarioDefinition(sourceId: string) {
+  return (
+    SCENARIO_DEFINITIONS.find((scenario) => scenario.sourceIds.includes(sourceId)) ?? {
+      id: sourceId,
+      sourceIds: [sourceId],
+      label: sourceId,
+      parties: []
+    }
+  );
+}
+
+function scenarioSortOrder(id: string): number {
+  const index = SCENARIO_DEFINITIONS.findIndex((scenario) => scenario.id === id);
+  return index === -1 ? SCENARIO_DEFINITIONS.length : index;
 }
 
 function groupBy<T, K extends string | number>(rows: T[], key: (row: T) => K): Map<K, T[]> {

@@ -76,6 +76,5 @@
 
     <text x={chartWidth - rightPad-5} y={chartHeight - -20} text-anchor="end" font-size="12">Voto estimado (%)</text>
   </svg>
-  <p class="mt-3 text-xs leading-6 text-(--color-text-secondary)">La marca vertical representa el resultado del 23J.</p>
   
 </div>

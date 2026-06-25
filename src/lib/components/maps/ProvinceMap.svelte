@@ -6,6 +6,7 @@
 
   export let collection: ProvinceMapCollection;
   export let metric: ProvinceMapMetric = 'winner';
+  export let selectedProvinceCode = '';
   export let onProvinceClick: (provinceCode: string) => void = () => {};
 
   let mapNode: HTMLDivElement;
@@ -17,6 +18,7 @@
   const sourceId = 'provinces';
   const fillLayerId = 'province-fill';
   const lineLayerId = 'province-line';
+  const selectedLineLayerId = 'province-selected-line';
 
   function colorExpression(activeMetric: ProvinceMapMetric): unknown[] {
     if (activeMetric === 'voteShare') {
@@ -60,6 +62,10 @@
         'fill-opacity',
         opacityExpression(selectedMetric) as DataDrivenPropertyValueSpecification<number>
       );
+    }
+
+    if (map?.getLayer(selectedLineLayerId)) {
+      map.setFilter(selectedLineLayerId, ['==', ['get', 'code'], selectedProvinceCode]);
     }
   }
 
@@ -123,6 +129,16 @@
             'line-width': 1.4
           }
         });
+        map?.addLayer({
+          id: selectedLineLayerId,
+          type: 'line',
+          source: sourceId,
+          filter: ['==', ['get', 'code'], selectedProvinceCode],
+          paint: {
+            'line-color': '#171717',
+            'line-width': 2.6
+          }
+        });
 
         map?.on('mousemove', fillLayerId, (event) => {
           const feature = event.features?.[0];
@@ -155,6 +171,7 @@
   });
 
   $: if (mounted && selectedMetric) updateMapData();
+  $: if (mounted && selectedProvinceCode) updateMapData();
   $: metric = selectedMetric;
 </script>
 

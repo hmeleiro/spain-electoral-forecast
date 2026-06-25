@@ -13,8 +13,10 @@
   import ScenarioTable from '$lib/components/tables/ScenarioTable.svelte';
   import {
     loadModelMetadata,
+    loadFirstForceProbabilitySeries,
     loadNationalEstimates,
     loadNationalEstimateSeries,
+    loadNationalScenarioSeries,
     loadNationalSimulations,
     loadPreviousNationalResults,
     loadPreviousProvinceResults,
@@ -24,6 +26,8 @@
   import type {
     ModelMetadata,
     NationalEstimate,
+    FirstForceProbability,
+    NationalScenarioSummary,
     NationalTrendPoint,
     PreviousProvinceResult,
     PreviousResult,
@@ -31,11 +35,10 @@
     ProvinceMapCollection,
     ScenarioSummary,
     SeatDistribution,
-    SimulationResult
   } from '$lib/data/schema';
   import {
-    buildScenarioSummaries,
     buildSeatDistributions,
+    emptyScenarioSummaries,
     electoralParties
   } from '$lib/data/transforms';
   import { formatMonthYear, formatPercent, formatSeats } from '$lib/utils/format';
@@ -47,15 +50,21 @@
   let provinces: ProvinceEstimate[] = [];
   let mapCollection: ProvinceMapCollection | null = null;
   let distributions: SeatDistribution[] = [];
-  let scenarios: ScenarioSummary[] = [];
+  let scenarioSeries: NationalScenarioSummary[] = [];
+  let firstForceProbabilities: FirstForceProbability[] = [];
   let trendPoints: NationalTrendPoint[] = [];
   let previousNationalResults: PreviousResult[] = [];
   let previousProvinceResults: PreviousProvinceResult[] = [];
-  let leadingPartyWinProbability = 0;
+  let hoveredTrendDate: string | null = null;
 
   $: electoralNational = national ? electoralParties(national.parties) : [];
   $: topParties = electoralNational.slice(0, 5);
   $: leadingParty = topParties[0];
+  $: activeDate = hoveredTrendDate ?? national?.date ?? metadata?.latestDate ?? null;
+  $: activeTrendParties = activeDate ? getTrendPartiesForDate(activeDate) : [];
+  $: activeLeadingParty = activeTrendParties[0] ?? leadingParty;
+  $: activeScenarios = getScenariosForDate(activeDate);
+  $: activeFirstForceProbability = getFirstForceProbability(activeDate, activeLeadingParty?.party);
 
   onMount(async () => {
     try {
@@ -68,6 +77,8 @@
         previousProvinceEstimates,
         nationalSimulations,
         nationalSeries,
+        nationalScenarioSeries,
+        firstForceProbabilitySeries,
         previousNational,
         previousProvince
       ] = await Promise.all([
@@ -76,6 +87,8 @@
         previousDate ? loadProvinceEstimates(previousDate) : Promise.resolve([]),
         loadNationalSimulations(latestDate),
         loadNationalEstimateSeries(),
+        loadNationalScenarioSeries(),
+        loadFirstForceProbabilitySeries(),
         loadPreviousNationalResults(),
         loadPreviousProvinceResults()
       ]);
@@ -83,13 +96,13 @@
       national = nationalEstimate;
       provinces = provinceEstimates;
       trendPoints = nationalSeries;
+      scenarioSeries = nationalScenarioSeries;
+      firstForceProbabilities = firstForceProbabilitySeries;
       previousNationalResults = previousNational;
       previousProvinceResults = previousProvince;
       mapCollection = await loadProvinceMapCollection(provinceEstimates, previousProvinceEstimates);
       const localTopParties = electoralParties(nationalEstimate.parties).slice(0, 5);
       distributions = buildSeatDistributions(nationalSimulations, localTopParties.map((party) => party.party));
-      scenarios = buildScenarioSummaries(nationalSimulations);
-      leadingPartyWinProbability = calculateFirstForceProbability(nationalSimulations, localTopParties[0]?.party);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     } finally {
@@ -101,27 +114,32 @@
     goto(`/provincias?provincia=${code}`);
   }
 
-  function calculateFirstForceProbability(simulations: SimulationResult[], partyId: string | undefined): number {
-    if (!partyId) return 0;
+  function getTrendPartiesForDate(date: string) {
+    return trendPoints
+      .filter((point) => point.date === date && point.isElectoral)
+      .sort(
+        (a, b) =>
+          (b.voteShareMean ?? -1) - (a.voteShareMean ?? -1) ||
+          (b.seatsMean ?? -1) - (a.seatsMean ?? -1)
+      )
+      .slice(0, 5);
+  }
 
-    const bySimulation = new Map<number, SimulationResult[]>();
-    for (const simulation of simulations) {
-      if (!simulation.isElectoral || simulation.votes == null) continue;
-      const rows = bySimulation.get(simulation.simulationId) ?? [];
-      rows.push(simulation);
-      bySimulation.set(simulation.simulationId, rows);
-    }
+  function getScenariosForDate(date: string | null): ScenarioSummary[] {
+    const emptyScenarios = emptyScenarioSummaries();
+    if (!date) return emptyScenarios;
 
-    let wins = 0;
-    let total = 0;
-    for (const rows of bySimulation.values()) {
-      const winner = rows.slice().sort((a, b) => (b.votes ?? -1) - (a.votes ?? -1))[0];
-      if (!winner) continue;
-      total += 1;
-      if (winner.party === partyId) wins += 1;
-    }
+    const rows = scenarioSeries.filter((scenario) => scenario.date === date);
+    return emptyScenarios.map((scenario) => rows.find((row) => row.id === scenario.id) ?? scenario);
+  }
 
-    return total ? wins / total : 0;
+  function getFirstForceProbability(date: string | null, partyId: string | undefined): number | null {
+    if (!date || !partyId) return null;
+    return firstForceProbabilities.find((row) => row.date === date && row.party === partyId)?.probability ?? null;
+  }
+
+  function formatProbability(value: number | null): string {
+    return value == null ? '-' : formatPercent(value * 100, 0);
   }
 </script>
 
@@ -136,7 +154,7 @@
 <section class="border-b border-[var(--color-border)] bg-[var(--color-surface)] py-16 md:py-10">
   <div class="editorial-shell">
     <div class="max-w-3xl">
-      <p class="eyebrow">Modelo electoral</p>
+      <!-- <p class="eyebrow">Modelo electoral</p> -->
       <h1 class="mt-3 text-4xl font-bold leading-tight text-[var(--color-text)] md:text-5xl">
         Spain Electoral Forecast
       </h1>
@@ -167,19 +185,22 @@
 
       <div class="mt-4 grid gap-4 md:grid-cols-3">
         <div class="panel p-5">
-          <p class="text-sm font-bold text-[var(--color-accent)]">Primera fuerza</p>
-          <p class="mt-2 text-3xl font-bold" style={`color:${leadingParty?.color}`}>
-            {leadingParty?.label ?? 'n/d'}
+          <p class="text-sm font-semibold">Primera fuerza</p>
+          <p class="mt-2 text-3xl font-bold" style={`color:${activeLeadingParty?.color}`}>
+            {activeLeadingParty?.label ?? 'n/d'}
           </p>
           <p class="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-            {formatPercent(leadingParty?.voteShareMean)} y {formatSeats(leadingParty?.seatsMean)} escaños medios.
+            {formatPercent(activeLeadingParty?.voteShareMean)} y {formatSeats(activeLeadingParty?.seatsMean)} escaños medios.
           </p>
           <p class="mt-2 text-xs text-[var(--color-text-secondary)]">
-            Prob. primera fuerza: {formatPercent(leadingPartyWinProbability * 100, 0)}
+            Prob. primera fuerza: {formatProbability(activeFirstForceProbability)}
+          </p>
+          <p class="mt-1 text-xs text-[var(--color-text-secondary)]">
+            Fecha mostrada: {formatMonthYear(activeDate)}
           </p>
         </div>
         <div class="h-full md:col-span-2">
-          <ProbabilityCards {scenarios} />
+          <ProbabilityCards scenarios={activeScenarios} />
         </div>
       </div>
 
@@ -190,7 +211,7 @@
             Serie historica de estimaciones para partidos con candidatura estatal.
           </p>
         </div>
-        <NationalEvolutionChart points={trendPoints} />
+        <NationalEvolutionChart points={trendPoints} onHoverDate={(date) => (hoveredTrendDate = date)} />
       </section>
 
       <div class="mt-8 grid gap-6 lg:grid-cols-2">
@@ -232,9 +253,6 @@
         <ScenarioTable estimates={provinces} previousResults={previousProvinceResults} />
       </section>
 
-      <div class="mt-8">
-        <ModelNotes />
-      </div>
     {/if}
   {/if}
 </section>

@@ -61,7 +61,7 @@
     {/each}
 
     {#if showMajorityLine}
-      <line x1={x(majority)} x2={x(majority)} y1={topPad - 6} y2={chartHeight - bottomPad} stroke="#2d5bff" stroke-dasharray="4 4" />
+      <line x1={x(majority)} x2={x(majority)} y1={topPad - 6} y2={chartHeight - bottomPad} stroke="#000000" stroke-dasharray="4 4" />
     {/if}
 
     <line x1={leftPad} x2={chartWidth - rightPad} y1={chartHeight - bottomPad} y2={chartHeight - bottomPad} stroke="#1a1a2e" />
@@ -96,5 +96,4 @@
 
     <text x={chartWidth - rightPad - 5} y={chartHeight - -10} text-anchor="end" font-size="12">Escanos medios</text>
   </svg>
-  <p class="mt-3 text-xs leading-6 text-(--color-text-secondary)">La marca vertical representa el resultado del 23J.</p>
 </div>

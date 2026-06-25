@@ -110,10 +110,14 @@ export type ScenarioSummary = {
   id: string;
   label: string;
   parties: string[];
-  seatsMean: number;
-  seatsMin: number;
-  seatsMax: number;
-  majorityProbability: number;
+  seatsMean: number | null;
+  seatsMin: number | null;
+  seatsMax: number | null;
+  majorityProbability: number | null;
+};
+
+export type NationalScenarioSummary = ScenarioSummary & {
+  date: string;
 };
 
 export type NationalTrendPoint = {
@@ -128,6 +132,30 @@ export type NationalTrendPoint = {
   seatsLower: number | null;
   seatsUpper: number | null;
   isElectoral: boolean;
+};
+
+export type FirstForceProbability = {
+  date: string;
+  party: string;
+  label: string;
+  color: string;
+  probability: number | null;
+};
+
+export type RawNationalScenarioRow = {
+  fecha: unknown;
+  scenario_id: string;
+  seats_median: number | null;
+  seats_min: number | null;
+  seats_max: number | null;
+  majority_probability: number | null;
+};
+
+export type RawFirstForceProbabilityRow = {
+  rank: number | null;
+  fecha: unknown;
+  partido: string;
+  first_force_probability: number | null;
 };
 
 export type RawNationalEstimateRow = {

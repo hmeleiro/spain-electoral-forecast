@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import Footer from '$lib/components/layout/Footer.svelte';
   import Header from '$lib/components/layout/Header.svelte';
   import '../app.css';
 
@@ -11,3 +12,5 @@
 <main>
   {@render children()}
 </main>
+
+<Footer />

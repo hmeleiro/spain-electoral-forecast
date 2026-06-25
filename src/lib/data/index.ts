@@ -18,12 +18,16 @@ import {
 import type {
   ModelMetadata,
   NationalEstimate,
+  FirstForceProbability,
+  NationalScenarioSummary,
   NationalTrendPoint,
   PreviousProvinceResult,
   PreviousResult,
   ProvinceMapCollection,
   ProvinceEstimate,
+  RawFirstForceProbabilityRow,
   RawNationalEstimateRow,
+  RawNationalScenarioRow,
   RawNationalSimulationRow,
   RawPreviousProvinceResultRow,
   RawPreviousResultRow,
@@ -36,6 +40,8 @@ import {
   buildProvinceMapCollection,
   enrichProvinceGeoJson,
   normalizeNationalEstimate,
+  normalizeFirstForceProbabilityRows,
+  normalizeNationalScenarioRows,
   normalizeNationalTrendRows,
   normalizeNationalSimulation,
   normalizePreviousProvinceResults,
@@ -109,6 +115,32 @@ export async function loadNationalEstimateSeries(): Promise<NationalTrendPoint[]
       seatsUpper: party.seatsInterval.upper,
       isElectoral: party.isElectoral
     })));
+  }
+}
+
+export async function loadNationalScenarioSeries(): Promise<NationalScenarioSummary[]> {
+  try {
+    const rows = await queryRows<RawNationalScenarioRow>(
+      `select cast(fecha as varchar) as fecha, * exclude(fecha) from '${SOURCE_FILES.nationalScenarios}'
+       order by fecha, scenario_id`
+    );
+    return normalizeNationalScenarioRows(rows);
+  } catch (error) {
+    console.warn('Escenarios nacionales agregados no disponibles', error);
+    return [];
+  }
+}
+
+export async function loadFirstForceProbabilitySeries(): Promise<FirstForceProbability[]> {
+  try {
+    const rows = await queryRows<RawFirstForceProbabilityRow>(
+      `select cast(fecha as varchar) as fecha, * exclude(fecha) from '${SOURCE_FILES.firstForceProbabilities}'
+       order by fecha, partido`
+    );
+    return normalizeFirstForceProbabilityRows(rows);
+  } catch (error) {
+    console.warn('Probabilidades de primera fuerza no disponibles', error);
+    return [];
   }
 }
 

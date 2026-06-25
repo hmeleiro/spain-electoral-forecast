@@ -39,9 +39,12 @@
       marginRight: 18,
       marginTop: 12,
       marginBottom: 36,
+      style: {
+        fontFamily: 'var(--font-sans)'
+      },
       x: {
         label: 'Escaños',
-        grid: true,
+        grid: false,
         ticks: xTicks,
         tickFormat: (value: number) => value.toFixed(0)
       },
@@ -49,7 +52,7 @@
         label: 'Probabilidad',
         grid: true,
         percent: true,
-        tickFormat: (value: number) => formatPercent(value * 100, 0)
+        tickFormat: (value: number) => formatPercent(value, 0)
       },
       marks: [
         Plot.rectY(probabilityBuckets, {

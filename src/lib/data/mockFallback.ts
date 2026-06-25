@@ -87,6 +87,8 @@ export const mockMetadata: ModelMetadata = {
   sourceFiles: {
     nationalEstimates: 'mock',
     provinceEstimates: 'mock',
+    nationalScenarios: 'mock',
+    firstForceProbabilities: 'mock',
     nationalSimulations: 'mock',
     provinceSimulations: 'mock'
   },

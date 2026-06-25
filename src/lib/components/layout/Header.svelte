@@ -7,7 +7,7 @@
     <a href="/" class="flex items-center gap-2 text-[var(--color-text)] no-underline">
       <span class="text-xl text-[var(--color-accent)]">◆</span>
       <div class="text-lg font-bold leading-none">
-        Spain Electoral Project
+        Spain Electoral Forecast
       </div>
     </a>
 

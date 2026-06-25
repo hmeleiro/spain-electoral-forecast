@@ -6,12 +6,16 @@
 
   export let points: NationalTrendPoint[] = [];
   export let parties: string[] = NATIONAL_LEVEL_PARTIES;
+  export let onHoverDate: (date: string | null) => void = () => {};
 
   let voteContainer: HTMLDivElement;
   let seatContainer: HTMLDivElement;
   let mounted = false;
   let renderVersion = 0;
   let mode: 'parties' | 'blocks' = 'parties';
+  let hoveredDate: string | null = null;
+  const chartMarginLeft = 42;
+  const chartMarginRight = 96;
 
   const blockDefinitions = [
     { id: 'right', label: 'Derecha', color: '#2878b8', parties: ['PP', 'VOX', 'UPN'] },
@@ -42,10 +46,14 @@
     const width = Math.max(320, voteContainer.clientWidth);
     const common = {
       width,
-      marginLeft: 42,
-      marginRight: 96,
+      marginLeft: chartMarginLeft,
+      marginRight: chartMarginRight,
       marginTop: 18,
       marginBottom: 34,
+      style: {
+        fontFamily: 'var(--font-sans)',
+        fontSize: '13px'
+      },
       x: {
         type: 'time' as const,
         grid: true,
@@ -61,7 +69,7 @@
     const voteChart = Plot.plot({
       ...common,
       height: 310,
-      y: { grid: true, label: 'Voto estimado (%)' },
+      y: { grid: true, label: 'Voto estimado (%)', ticks: 3},
       marks: [
         Plot.ruleY([0]),
         Plot.areaY(chartPoints.filter((point) => point.voteShareLower != null && point.voteShareUpper != null), {
@@ -104,9 +112,9 @@
     const seatChart = Plot.plot({
       ...common,
       height: 260,
-      y: { grid: true, label: 'Escaños medios', tickFormat: (value: number) => formatNumber(value, 0) },
+      y: { grid: true, label: 'Escaños medios', ticks:3, tickFormat: (value: number) => formatNumber(value, 0) },
       marks: [
-        Plot.ruleY([176], { stroke: '#2d5bff', strokeDasharray: '4 4' }),
+        Plot.ruleY([176], { stroke: '#000000', strokeDasharray: '4 4' }),
         Plot.areaY(chartPoints.filter((point) => point.seatsLower != null && point.seatsUpper != null), {
           x: 'dateValue',
           y1: 'seatsLower',
@@ -180,6 +188,53 @@ ${intervalText(point.voteShareLower, point.voteShareUpper, (value) => formatPerc
 ${formatMonthYear(point.date)}
 Escaños medios: ${formatNumber(point.seatsMean, 0)}
 ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value, 0))}`;
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    const dates = uniqueChartDates();
+    if (!dates.length) {
+      setHoveredDate(null);
+      return;
+    }
+
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLElement)) return;
+
+    const rect = target.getBoundingClientRect();
+    const plotWidth = Math.max(1, rect.width - chartMarginLeft - chartMarginRight);
+    const relativeX = Math.min(Math.max(event.clientX - rect.left - chartMarginLeft, 0), plotWidth);
+    const minTime = dates[0].dateValue.getTime();
+    const maxTime = dates.at(-1)!.dateValue.getTime();
+    const pointerTime = minTime + (relativeX / plotWidth) * (maxTime - minTime);
+    const nearest = dates.reduce((best, candidate) =>
+      Math.abs(candidate.dateValue.getTime() - pointerTime) < Math.abs(best.dateValue.getTime() - pointerTime)
+        ? candidate
+        : best
+    );
+
+    setHoveredDate(nearest.date);
+  }
+
+  function clearHoveredDate() {
+    setHoveredDate(null);
+  }
+
+  function setHoveredDate(date: string | null) {
+    if (hoveredDate === date) return;
+    hoveredDate = date;
+    onHoverDate(date);
+  }
+
+  function uniqueChartDates(): Array<{ date: string; dateValue: Date }> {
+    const byDate = new Map<string, Date>();
+    for (const point of chartPoints) {
+      if (point.voteShareMean == null && point.seatsMean == null) continue;
+      byDate.set(point.date, point.dateValue);
+    }
+
+    return [...byDate.entries()]
+      .map(([date, dateValue]) => ({ date, dateValue }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   function repelEndLabels(
@@ -306,7 +361,14 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
     <div class="mb-2 flex items-baseline justify-between gap-3">
       <h3 class="text-base font-semibold text-[var(--color-text)]">Evolucion de voto</h3>
     </div>
-    <div bind:this={voteContainer} class="chart-frame min-h-80"></div>
+    <div
+      bind:this={voteContainer}
+      class="chart-frame min-h-80"
+      role="img"
+      aria-label="Evolucion de voto por fecha"
+      on:pointermove={handlePointerMove}
+      on:pointerleave={clearHoveredDate}
+    ></div>
   </div>
 
   <div>
@@ -314,7 +376,14 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
       <h3 class="text-base font-semibold text-[var(--color-text)]">Evolucion de escaños</h3>
       <p class="text-xs text-[var(--color-text-secondary)]">Linea discontinua: mayoria absoluta</p>
     </div>
-    <div bind:this={seatContainer} class="chart-frame min-h-64"></div>
+    <div
+      bind:this={seatContainer}
+      class="chart-frame min-h-64"
+      role="img"
+      aria-label="Evolucion de escanos por fecha"
+      on:pointermove={handlePointerMove}
+      on:pointerleave={clearHoveredDate}
+    ></div>
   </div>
 </div>
 

@@ -29,6 +29,14 @@
       return pieces;
     });
   }
+
+  function percentOrDash(value: number | null | undefined): string {
+    return value == null ? '-' : formatPercent(value * 100, 0);
+  }
+
+  function numberOrDash(value: number | null | undefined): string {
+    return value == null ? '-' : formatNumber(value, 0);
+  }
 </script>
 
 <div class="grid h-full gap-4 md:grid-cols-2">
@@ -42,13 +50,13 @@
         </p>
 
         <p class="mt-2 text-5xl font-bold tracking-tight text-[var(--color-text)]">
-          {formatPercent(scenario.majorityProbability * 100, 0)}
+          {percentOrDash(scenario.majorityProbability)}
         </p>
       </div>
 
       <p class="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-        Media {formatNumber(scenario.seatsMean, 0)} escanos; rango simulado
-        {formatNumber(scenario.seatsMin)}-{formatNumber(scenario.seatsMax)}.
+        Mediana {numberOrDash(scenario.seatsMean)} escanos; rango simulado
+        {numberOrDash(scenario.seatsMin)}-{numberOrDash(scenario.seatsMax)}.
       </p>
     </article>
   {/each}

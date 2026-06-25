@@ -4,15 +4,23 @@
   import SimulationHistogram from '$lib/components/charts/SimulationHistogram.svelte';
   import VoteShareChart from '$lib/components/charts/VoteShareChart.svelte';
   import LoadingState from '$lib/components/layout/LoadingState.svelte';
+  import ProvinceMap from '$lib/components/maps/ProvinceMap.svelte';
   import {
     getAvailableProvinces,
     loadModelMetadata,
     loadNationalEstimates,
     loadPreviousProvinceResults,
     loadProvinceEstimates,
+    loadProvinceMapCollection,
     loadProvinceSimulations
   } from '$lib/data';
-  import type { NationalEstimate, PreviousProvinceResult, ProvinceEstimate, SeatDistribution } from '$lib/data/schema';
+  import type {
+    NationalEstimate,
+    PreviousProvinceResult,
+    ProvinceEstimate,
+    ProvinceMapCollection,
+    SeatDistribution
+  } from '$lib/data/schema';
   import { buildSeatDistributions, electoralParties } from '$lib/data/transforms';
   import { formatDate, formatPercent, formatSeats } from '$lib/utils/format';
 
@@ -26,6 +34,7 @@
   let provinceRows: ProvinceEstimate[] = [];
   let previousProvinceRows: PreviousProvinceResult[] = [];
   let national: NationalEstimate | null = null;
+  let mapCollection: ProvinceMapCollection | null = null;
   let distributions: SeatDistribution[] = [];
   let lastLoadedProvince = '';
 
@@ -53,12 +62,24 @@
     lastLoadedProvince = selectedProvince;
   }
 
+  function selectProvince(code: string) {
+    selectedProvince = code.padStart(2, '0');
+    window.history.replaceState(null, '', `/provincias?provincia=${selectedProvince}`);
+  }
+
+  function handleProvinceSelect(event: Event) {
+    const select = event.currentTarget as HTMLSelectElement;
+    selectProvince(select.value);
+  }
+
   onMount(async () => {
     selectedProvince = new URLSearchParams(window.location.search).get('provincia') ?? selectedProvince;
     const metadata = await loadModelMetadata();
     latestDate = metadata.latestDate;
-    const [provinceEstimates, nationalEstimate, previousProvinceResults] = await Promise.all([
+    const previousDate = metadata.dates.at(-2);
+    const [provinceEstimates, previousProvinceEstimates, nationalEstimate, previousProvinceResults] = await Promise.all([
       loadProvinceEstimates(latestDate),
+      previousDate ? loadProvinceEstimates(previousDate) : Promise.resolve([]),
       loadNationalEstimates(latestDate),
       loadPreviousProvinceResults()
     ]);
@@ -66,6 +87,7 @@
     allProvinceEstimates = provinceEstimates;
     allPreviousProvinceResults = previousProvinceResults;
     national = nationalEstimate;
+    mapCollection = await loadProvinceMapCollection(provinceEstimates, previousProvinceEstimates);
     await loadProvinceDetail();
     loading = false;
   });
@@ -83,12 +105,12 @@
   <div class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
     <div>
       <p class="eyebrow">Analisis provincial</p>
-      <h1 class="mt-3 text-4xl font-bold leading-tight text-[var(--color-text)] md:text-5xl">{selectedName}</h1>
-      <p class="mt-3 text-sm text-[var(--color-text-secondary)]">Estimacion de {formatDate(latestDate)}</p>
+      <h1 class="mt-3 text-4xl font-bold leading-tight text-[var(--color-text)] md:text-5xl">Provincias</h1>
+      <p class="mt-3 text-sm text-[var(--color-text-secondary)]">Selecciona una provincia en el mapa o en el desplegable.</p>
     </div>
     <label class="text-sm font-bold text-[var(--color-text-secondary)]">
       Provincia
-      <select bind:value={selectedProvince} class="mt-2 block rounded border border-[#c9c0b3] bg-white px-3 py-2">
+      <select value={selectedProvince} onchange={handleProvinceSelect} class="mt-2 block rounded border border-[#c9c0b3] bg-white px-3 py-2">
         {#each provinceOptions as province}
           <option value={province.code}>{province.name}</option>
         {/each}
@@ -101,6 +123,22 @@
       <LoadingState />
     </div>
   {:else}
+    {#if mapCollection}
+      <section class="panel mt-8 p-5">
+        <ProvinceMap
+          collection={mapCollection}
+          selectedProvinceCode={selectedProvince}
+          onProvinceClick={selectProvince}
+        />
+      </section>
+    {/if}
+
+    <section class="mt-8 border-t border-[var(--color-border)] pt-8">
+      <p class="eyebrow">Ficha provincial</p>
+      <h2 class="mt-3 text-3xl font-bold leading-tight text-[var(--color-text)] md:text-4xl">{selectedName}</h2>
+      <p class="mt-2 text-sm text-[var(--color-text-secondary)]">Estimacion de {formatDate(latestDate)}</p>
+    </section>
+
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {#each provinceParties.slice(0, 3) as party}
         <article class="panel p-5">
