@@ -27,13 +27,10 @@ async function createDatabase(): Promise<duckdb.AsyncDuckDB> {
 
 async function registerParquetFile(db: duckdb.AsyncDuckDB, fileName: string): Promise<void> {
   if (!registeredFiles.has(fileName)) {
-    registeredFiles.set(fileName, (async () => {
-      const response = await fetch(dataFileUrl(fileName));
-      if (!response.ok) {
-        throw new Error(`No se pudo descargar ${fileName}: ${response.status}`);
-      }
-      await db.registerFileBuffer(fileName, new Uint8Array(await response.arrayBuffer()));
-    })());
+    registeredFiles.set(
+      fileName,
+      db.registerFileURL(fileName, dataFileUrl(fileName), duckdb.DuckDBDataProtocol.HTTP, false)
+    );
   }
 
   await registeredFiles.get(fileName);
