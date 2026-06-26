@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import ProvincialSeatSquares from '$lib/components/charts/ProvincialSeatSquares.svelte';
   import SeatProjectionChart from '$lib/components/charts/SeatProjectionChart.svelte';
   import VoteShareChart from '$lib/components/charts/VoteShareChart.svelte';
   import LoadingState from '$lib/components/layout/LoadingState.svelte';
@@ -41,6 +42,27 @@
   );
   $: nationalComparable =
     national?.parties.filter((party) => provinceParties.some((provinceParty) => provinceParty.party === party.party)) ?? [];
+  $: comparisonParties = provinceParties.slice(0, 7).map((party) => {
+    const nationalParty = nationalComparable.find((candidate) => candidate.party === party.party);
+    const delta =
+      party.voteShareMean != null && nationalParty?.voteShareMean != null
+        ? party.voteShareMean - nationalParty.voteShareMean
+        : null;
+
+    return { party, nationalParty, delta };
+  });
+  $: maxNationalDelta = Math.max(1, ...comparisonParties.map(({ delta }) => Math.abs(delta ?? 0)));
+
+  function formatDifference(value: number | null): string {
+    if (value == null || Number.isNaN(value)) return 'n/d';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toLocaleString('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} pp`;
+  }
+
+  function comparisonWidth(value: number | null): number {
+    if (value == null || maxNationalDelta <= 0) return 0;
+    return Math.min(100, (Math.abs(value) / maxNationalDelta) * 100);
+  }
 
   function loadProvinceDetail() {
     const localRows = allProvinceEstimates.filter((estimate) => estimate.provinceCode === selectedProvince);
@@ -121,21 +143,44 @@
       </section>
     {/if}
 
+    <!-- <section class="panel mt-8 p-5">
+      <div class="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 class="text-xl font-semibold text-[var(--color-text)]">Escanos en todas las provincias</h2>
+          <p class="text-sm text-[var(--color-text-secondary)]">Borde oscuro: sube respecto a 23J; opacidad baja: retrocede.</p>
+        </div>
+      </div>
+      <ProvincialSeatSquares
+        estimates={allProvinceEstimates}
+        previousResults={allPreviousProvinceResults}
+        variant="matrix"
+      />
+    </section> -->
+
     <section class="mt-8 border-t border-[var(--color-border)] pt-8">
       <p class="eyebrow">Ficha provincial</p>
       <h2 class="mt-3 text-3xl font-bold leading-tight text-[var(--color-text)] md:text-4xl">{selectedName}</h2>
       <p class="mt-2 text-sm text-[var(--color-text-secondary)]">Estimacion de {formatDate(latestDate)}</p>
     </section>
 
+
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {#each provinceParties.slice(0, 3) as party}
         <article class="panel p-5">
           <p class="text-sm font-bold" style={`color:${party.color}`}>{party.label}</p>
           <p class="mt-2 text-3xl font-bold text-[var(--color-text)]">{formatPercent(party.voteShareMean)}</p>
-          <p class="mt-2 text-sm text-[var(--color-text-secondary)]">{formatSeats(party.seatsMean)} escaños medios</p>
+          <p class="mt-2 text-sm text-[var(--color-text-secondary)]">{formatSeats(party.seatsMean)} escaños</p>
         </article>
       {/each}
     </div>
+
+            <section class="panel mt-8 p-5">
+      <div class="mb-5">
+        <h2 class="text-xl font-semibold text-[var(--color-text)]">Escanos por candidatura</h2>
+        <p class="text-sm text-[var(--color-text-secondary)]">Borde oscuro: sube respecto a 23J; opacidad baja: retrocede.</p>
+      </div>
+      <ProvincialSeatSquares estimates={provinceRows} previousResults={previousProvinceRows} />
+    </section>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
       <section class="panel p-5">
@@ -145,6 +190,7 @@
         </div>
         <VoteShareChart parties={provinceParties} previousResults={previousProvinceRows} />
       </section>
+      
       <section class="panel p-5">
         <div class="mb-4">
           <h2 class="text-xl font-semibold text-[var(--color-text)]">Escaños provinciales</h2>
@@ -154,24 +200,41 @@
       </section>
     </div>
 
-    <section class="panel mt-8 p-5">
+    <section class="panel mt-8 w-full p-5 md:w-1/2">
       <h2 class="text-xl font-semibold text-[var(--color-text)]">Comparacion nacional</h2>
+        <h4>Diferencia entre el % en la provincia y el % nacional</h4>
       <div class="mt-4 space-y-3">
-        {#each provinceParties.slice(0, 7) as party}
-          {@const nationalParty = nationalComparable.find((candidate) => candidate.party === party.party)}
+        {#each comparisonParties as { party, nationalParty, delta }}
           <div>
             <div class="flex items-center justify-between gap-4 text-sm">
               <span class="font-bold" style={`color:${party.color}`}>{party.label}</span>
               <span class="tabular-nums text-[#5e5a54]">
-                {formatPercent(party.voteShareMean)} prov. · {formatPercent(nationalParty?.voteShareMean)} nac.
+              {formatDifference(delta)}
+                <!-- {formatPercent(party.voteShareMean)} prov. · {formatPercent(nationalParty?.voteShareMean)} nac. · {formatDifference(delta)} -->
               </span>
             </div>
-            <div class="mt-1 h-2 overflow-hidden rounded bg-[#e6ded2]">
-              <div class="h-full rounded" style={`width:${Math.min(100, party.voteShareMean ?? 0)}%;background:${party.color}`}></div>
+            <div class="relative mt-1 grid h-3 grid-cols-2 overflow-hidden rounded bg-[#edf0f3]">
+              <div class="flex justify-end border-r border-[#8f8b85]">
+                {#if delta != null && delta < 0}
+                  <div
+                    class="h-full rounded-l"
+                    style={`width:${comparisonWidth(delta)}%;background:${party.color};opacity:0.45`}
+                  ></div>
+                {/if}
+              </div>
+              <div>
+                {#if delta != null && delta > 0}
+                  <div
+                    class="h-full rounded-r"
+                    style={`width:${comparisonWidth(delta)}%;background:${party.color}`}
+                  ></div>
+                {/if}
+              </div>
             </div>
           </div>
         {/each}
       </div>
     </section>
+
   {/if}
 </section>

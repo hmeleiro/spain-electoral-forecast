@@ -1,10 +1,11 @@
 <script lang="ts">
   import { NATIONAL_LEVEL_PARTIES } from '$lib/config/parties';
-  import type { NationalTrendPoint } from '$lib/data/schema';
+  import type { NationalTrendPoint, PreviousResult } from '$lib/data/schema';
   import { formatNumber, formatPercent } from '$lib/utils/format';
   import { onMount } from 'svelte';
 
   export let points: NationalTrendPoint[] = [];
+  export let previousResults: PreviousResult[] = [];
   export let parties: string[] = NATIONAL_LEVEL_PARTIES;
   export let onHoverDate: (date: string | null) => void = () => {};
 
@@ -14,8 +15,22 @@
   let renderVersion = 0;
   let mode: 'parties' | 'blocks' = 'parties';
   let hoveredDate: string | null = null;
+  let chartTooltip: ChartTooltip | null = null;
   const chartMarginLeft = 42;
   const chartMarginRight = 96;
+  const chartMarginTop = 18;
+  const chartMarginBottom = 34;
+
+  type TrendPointWithDate = NationalTrendPoint & { dateValue: Date };
+  type ChartMetric = 'vote' | 'seats';
+  type ChartTooltip = {
+    metric: ChartMetric;
+    point: TrendPointWithDate;
+    delta: number | null;
+    x: number;
+    y: number;
+    alignRight: boolean;
+  };
 
   const blockDefinitions = [
     { id: 'right', label: 'Derecha', color: '#2878b8', parties: ['PP', 'VOX', 'UPN'] },
@@ -32,6 +47,7 @@
   }));
   $: chartPoints = mode === 'parties' ? partyPoints : blockPoints;
   $: activeSeries = mode === 'parties' ? parties : blockDefinitions.map((block) => block.id);
+  $: previousByParty = new Map(previousResults.map((result) => [result.party, result]));
   $: voteEndLabels = repelEndLabels(chartPoints, activeSeries, 'voteShareMean', 2.5);
   $: seatEndLabels = repelEndLabels(chartPoints, activeSeries, 'seatsMean', mode === 'blocks' ? 15 : 14);
   $: renderToken = `${mode}:${chartPoints
@@ -92,9 +108,7 @@
           y: 'voteShareMean',
           stroke: (d) => d.color,
           fill: 'white',
-          r: 2.6,
-          title: voteTooltip,
-          tip: true
+          r: 2.6
         }),
         Plot.text(voteEndLabels, {
           x: 'dateValue',
@@ -112,7 +126,7 @@
     const seatChart = Plot.plot({
       ...common,
       height: 260,
-      y: { grid: true, label: 'Escaños medios', ticks:3, tickFormat: (value: number) => formatNumber(value, 0) },
+      y: { grid: true, label: 'Escaños', ticks:3, tickFormat: (value: number) => formatNumber(value, 0) },
       marks: [
         Plot.ruleY([176], { stroke: '#000000', strokeDasharray: '4 4' }),
         Plot.areaY(chartPoints.filter((point) => point.seatsLower != null && point.seatsUpper != null), {
@@ -135,9 +149,7 @@
           y: 'seatsMean',
           stroke: (d) => d.color,
           fill: 'white',
-          r: 2.6,
-          title: seatsTooltip,
-          tip: true
+          r: 2.6
         }),
         Plot.text(seatEndLabels, {
           x: 'dateValue',
@@ -176,24 +188,16 @@
     return lower == null || upper == null ? 'Intervalo: n/d' : `Intervalo: ${formatter(lower)} - ${formatter(upper)}`;
   }
 
-  function voteTooltip(point: NationalTrendPoint): string {
-    return `${point.label}
-${formatMonthYear(point.date)}
-Voto medio: ${formatPercent(point.voteShareMean, 1)}
-${intervalText(point.voteShareLower, point.voteShareUpper, (value) => formatPercent(value, 1))}`;
+  function setMode(nextMode: 'parties' | 'blocks') {
+    mode = nextMode;
+    chartTooltip = null;
   }
 
-  function seatsTooltip(point: NationalTrendPoint): string {
-    return `${point.label}
-${formatMonthYear(point.date)}
-Escaños medios: ${formatNumber(point.seatsMean, 0)}
-${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value, 0))}`;
-  }
-
-  function handlePointerMove(event: PointerEvent) {
+  function handlePointerMove(event: PointerEvent, metric: ChartMetric) {
     const dates = uniqueChartDates();
     if (!dates.length) {
       setHoveredDate(null);
+      chartTooltip = null;
       return;
     }
 
@@ -213,10 +217,12 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
     );
 
     setHoveredDate(nearest.date);
+    setTooltip(event, metric, target, dates);
   }
 
   function clearHoveredDate() {
     setHoveredDate(null);
+    chartTooltip = null;
   }
 
   function setHoveredDate(date: string | null) {
@@ -235,6 +241,139 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
     return [...byDate.entries()]
       .map(([date, dateValue]) => ({ date, dateValue }))
       .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function setTooltip(
+    event: PointerEvent,
+    metric: ChartMetric,
+    target: HTMLElement,
+    dates: Array<{ date: string; dateValue: Date }>
+  ) {
+    const svg = target.querySelector('svg');
+    const rect = svg?.getBoundingClientRect() ?? target.getBoundingClientRect();
+    const point = nearestPoint(event, metric, rect, dates);
+    if (!point) {
+      chartTooltip = null;
+      return;
+    }
+
+    const relativeX = event.clientX - rect.left;
+    const relativeY = event.clientY - rect.top;
+    chartTooltip = {
+      metric,
+      point,
+      delta: pointDelta(point, metric),
+      x: Math.min(Math.max(relativeX, 12), rect.width - 12),
+      y: Math.min(Math.max(relativeY, 12), rect.height - 12),
+      alignRight: relativeX > rect.width - 220
+    };
+  }
+
+  function nearestPoint(
+    event: PointerEvent,
+    metric: ChartMetric,
+    rect: DOMRect,
+    dates: Array<{ date: string; dateValue: Date }>
+  ): TrendPointWithDate | null {
+    const candidates = chartPoints.filter((point): point is TrendPointWithDate => metricValue(point, metric) != null);
+    if (!candidates.length) return null;
+
+    const domain = yDomain(metric);
+    const minTime = dates[0].dateValue.getTime();
+    const maxTime = dates.at(-1)!.dateValue.getTime();
+    const plotWidth = Math.max(1, rect.width - chartMarginLeft - chartMarginRight);
+    const plotHeight = Math.max(1, rect.height - chartMarginTop - chartMarginBottom);
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+
+    return candidates.reduce<TrendPointWithDate | null>((best, point) => {
+      const distance = pointDistance(point, metric, domain, minTime, maxTime, plotWidth, plotHeight, pointerX, pointerY);
+      if (!best) return point;
+
+      const bestDistance = pointDistance(best, metric, domain, minTime, maxTime, plotWidth, plotHeight, pointerX, pointerY);
+      return distance < bestDistance ? point : best;
+    }, null);
+  }
+
+  function pointDistance(
+    point: TrendPointWithDate,
+    metric: ChartMetric,
+    domain: { min: number; max: number },
+    minTime: number,
+    maxTime: number,
+    plotWidth: number,
+    plotHeight: number,
+    pointerX: number,
+    pointerY: number
+  ): number {
+    const value = metricValue(point, metric);
+    if (value == null || !Number.isFinite(value)) return Number.POSITIVE_INFINITY;
+
+    const x =
+      chartMarginLeft +
+      (maxTime === minTime ? 0.5 : (point.dateValue.getTime() - minTime) / (maxTime - minTime)) * plotWidth;
+    const y =
+      chartMarginTop +
+      (domain.max === domain.min ? 0.5 : (domain.max - value) / (domain.max - domain.min)) * plotHeight;
+    return (pointerX - x) ** 2 + (pointerY - y) ** 2;
+  }
+
+  function yDomain(metric: ChartMetric): { min: number; max: number } {
+    const values = chartPoints
+      .flatMap((point) =>
+        metric === 'vote'
+          ? [point.voteShareMean, point.voteShareLower, point.voteShareUpper, 0]
+          : [point.seatsMean, point.seatsLower, point.seatsUpper, 176]
+      )
+      .filter((value): value is number => value != null && Number.isFinite(value));
+
+    if (!values.length) return { min: 0, max: 1 };
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }
+
+  function metricValue(point: NationalTrendPoint, metric: ChartMetric): number | null {
+    return metric === 'vote' ? point.voteShareMean : point.seatsMean;
+  }
+
+  function pointDelta(point: NationalTrendPoint, metric: ChartMetric): number | null {
+    const previousValue = previousMetricValue(point.party, metric);
+    const currentValue = metricValue(point, metric);
+    return previousValue == null || currentValue == null ? null : currentValue - previousValue;
+  }
+
+  function previousMetricValue(party: string, metric: ChartMetric): number | null {
+    if (mode === 'blocks') {
+      const block = blockDefinitions.find((definition) => definition.id === party);
+      if (!block) return null;
+      return sumNullable(
+        block.parties.map((partyId) => {
+          const previous = previousByParty.get(partyId);
+          return metric === 'vote' ? previous?.voteShare ?? null : previous?.seats ?? null;
+        })
+      );
+    }
+
+    const previous = previousByParty.get(party);
+    return metric === 'vote' ? previous?.voteShare ?? null : previous?.seats ?? null;
+  }
+
+  function formatDelta(delta: number | null, metric: ChartMetric): string {
+    if (delta == null || !Number.isFinite(delta)) return 'n/d';
+    const rounded = roundedDelta(delta, metric);
+    const sign = rounded > 0 ? '+' : rounded < 0 ? '-' : '';
+    const value = formatNumber(Math.abs(rounded), metric === 'vote' ? 1 : 0);
+    return `${sign}${value}${metric === 'vote' ? ' pp' : ''}`;
+  }
+
+  function roundedDelta(delta: number, metric: ChartMetric): number {
+    return Number(delta.toFixed(metric === 'vote' ? 1 : 0));
+  }
+
+  function deltaTone(delta: number | null, metric: ChartMetric): 'positive' | 'negative' | 'neutral' {
+    if (delta == null || !Number.isFinite(delta)) return 'neutral';
+    const rounded = roundedDelta(delta, metric);
+    if (rounded === 0) return 'neutral';
+    return rounded > 0 ? 'positive' : 'negative';
   }
 
   function repelEndLabels(
@@ -343,14 +482,14 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
       <button
         type="button"
         class:active={mode === 'parties'}
-        on:click={() => (mode = 'parties')}
+        on:click={() => setMode('parties')}
       >
         Partidos
       </button>
       <button
         type="button"
         class:active={mode === 'blocks'}
-        on:click={() => (mode = 'blocks')}
+        on:click={() => setMode('blocks')}
       >
         Bloques
       </button>
@@ -358,32 +497,67 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
   </div>
 
   <div>
-    <div class="mb-2 flex items-baseline justify-between gap-3">
+    <div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <h3 class="text-base font-semibold text-[var(--color-text)]">Evolucion de voto</h3>
+      <p class="text-xs text-[var(--color-text-secondary)]">Variacion del tooltip representa la diferencia respecto a las elecciones del 23J.</p>
     </div>
-    <div
-      bind:this={voteContainer}
-      class="chart-frame min-h-80"
-      role="img"
-      aria-label="Evolucion de voto por fecha"
-      on:pointermove={handlePointerMove}
-      on:pointerleave={clearHoveredDate}
-    ></div>
+    <div class="chart-shell">
+      <div
+        bind:this={voteContainer}
+        class="chart-frame min-h-80"
+        role="img"
+        aria-label="Evolucion de voto por fecha"
+        on:pointermove={(event) => handlePointerMove(event, 'vote')}
+        on:pointerleave={clearHoveredDate}
+      ></div>
+      {#if chartTooltip?.metric === 'vote'}
+        <div
+          class:align-right={chartTooltip.alignRight}
+          class="chart-tooltip"
+          style={`left: ${chartTooltip.x}px; top: ${chartTooltip.y}px;`}
+        >
+          <div class="tooltip-title">{chartTooltip.point.label}</div>
+          <div>{formatMonthYear(chartTooltip.point.date)}</div>
+          <div>
+            Voto: {formatPercent(chartTooltip.point.voteShareMean, 1)}
+            <span class={deltaTone(chartTooltip.delta, 'vote')}>({formatDelta(chartTooltip.delta, 'vote')})</span>
+          </div>
+          <div>{intervalText(chartTooltip.point.voteShareLower, chartTooltip.point.voteShareUpper, (value) => formatPercent(value, 1))}</div>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <div>
-    <div class="mb-2 flex items-baseline justify-between gap-3">
+    <div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <h3 class="text-base font-semibold text-[var(--color-text)]">Evolucion de escaños</h3>
-      <p class="text-xs text-[var(--color-text-secondary)]">Linea discontinua: mayoria absoluta</p>
+      <p class="text-xs text-[var(--color-text-secondary)]">Linea discontinua: mayoria absoluta.</p>
     </div>
-    <div
-      bind:this={seatContainer}
-      class="chart-frame min-h-64"
-      role="img"
-      aria-label="Evolucion de escanos por fecha"
-      on:pointermove={handlePointerMove}
-      on:pointerleave={clearHoveredDate}
-    ></div>
+    <div class="chart-shell">
+      <div
+        bind:this={seatContainer}
+        class="chart-frame min-h-64"
+        role="img"
+        aria-label="Evolucion de escanos por fecha"
+        on:pointermove={(event) => handlePointerMove(event, 'seats')}
+        on:pointerleave={clearHoveredDate}
+      ></div>
+      {#if chartTooltip?.metric === 'seats'}
+        <div
+          class:align-right={chartTooltip.alignRight}
+          class="chart-tooltip"
+          style={`left: ${chartTooltip.x}px; top: ${chartTooltip.y}px;`}
+        >
+          <div class="tooltip-title">{chartTooltip.point.label}</div>
+          <div>{formatMonthYear(chartTooltip.point.date)}</div>
+          <div>
+            Escaños: {formatNumber(chartTooltip.point.seatsMean, 0)}
+            <span class={deltaTone(chartTooltip.delta, 'seats')}>({formatDelta(chartTooltip.delta, 'seats')})</span>
+          </div>
+          <div>{intervalText(chartTooltip.point.seatsLower, chartTooltip.point.seatsUpper, (value) => formatNumber(value, 0))}</div>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -397,5 +571,50 @@ ${intervalText(point.seatsLower, point.seatsUpper, (value) => formatNumber(value
   button.active {
     background: var(--color-accent);
     color: white;
+  }
+
+  .chart-shell {
+    position: relative;
+  }
+
+  .chart-tooltip {
+    position: absolute;
+    z-index: 20;
+    max-width: min(260px, calc(100% - 24px));
+    transform: translate(12px, -50%);
+    pointer-events: none;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-md);
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    padding: 0.55rem 0.65rem;
+    white-space: nowrap;
+  }
+
+  .chart-tooltip.align-right {
+    transform: translate(calc(-100% - 12px), -50%);
+  }
+
+  .tooltip-title {
+    font-weight: 800;
+  }
+
+  .positive {
+    color: #15803d;
+    font-weight: 800;
+  }
+
+  .negative {
+    color: #b91c1c;
+    font-weight: 800;
+  }
+
+  .neutral {
+    color: var(--color-text-secondary);
+    font-weight: 700;
   }
 </style>

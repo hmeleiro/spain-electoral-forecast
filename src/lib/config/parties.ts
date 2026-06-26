@@ -24,7 +24,7 @@ export const PARTY_CONFIG: Record<string, PartyConfig> = {
   SUMAR: { id: 'SUMAR', label: 'Sumar', color: '#c85aa6' },
   Podemos: { id: 'Podemos', label: 'Podemos', color: '#7b3294' },
   ERC: { id: 'ERC', label: 'ERC', color: '#f3b21a', textColor: '#171717' },
-  Junts: { id: 'Junts', label: 'Junts', color: '#3fb5ad' },
+  Junts: { id: 'Junts', label: 'Junts', color: '#01C2AB' },
   PNV: { id: 'PNV', label: 'PNV', color: '#1b8a5a' },
   'EH Bildu': { id: 'EH Bildu', label: 'EH Bildu', color: '#97bd3d', textColor: '#171717' },
   BNG: { id: 'BNG', label: 'BNG', color: '#76aadb' },

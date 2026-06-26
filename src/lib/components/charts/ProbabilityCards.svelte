@@ -52,11 +52,14 @@
         <p class="mt-2 text-5xl font-bold tracking-tight text-[var(--color-text)]">
           {percentOrDash(scenario.majorityProbability)}
         </p>
+                  <p class="mt-2 text-xs text-[var(--color-text-secondary)]">
+            Prob. mayoría absoluta
+          </p>
       </div>
 
       <p class="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-        Mediana {numberOrDash(scenario.seatsMean)} escanos; rango simulado
-        {numberOrDash(scenario.seatsMin)}-{numberOrDash(scenario.seatsMax)}.
+        {numberOrDash(scenario.seatsMean)} escaños
+        [{numberOrDash(scenario.seatsMin)}-{numberOrDash(scenario.seatsMax)}]
       </p>
     </article>
   {/each}

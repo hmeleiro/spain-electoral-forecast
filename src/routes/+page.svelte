@@ -60,12 +60,16 @@
   $: electoralNational = national ? electoralParties(national.parties) : [];
   $: topParties = electoralNational.slice(0, 5);
   $: leadingParty = topParties[0];
-  $: initialCardDate = getInitialCardDate(national?.date ?? metadata?.latestDate ?? null);
+  $: initialCardDate = getInitialCardDate(national?.date ?? metadata?.latestDate ?? null, scenarioSeries);
   $: activeDate = hoveredTrendDate ?? initialCardDate;
-  $: activeTrendParties = activeDate ? getTrendPartiesForDate(activeDate) : [];
+  $: activeTrendParties = activeDate ? getTrendPartiesForDate(activeDate, trendPoints) : [];
   $: activeLeadingParty = activeTrendParties[0] ?? leadingParty;
-  $: activeScenarios = getScenariosForDate(activeDate);
-  $: activeFirstForceProbability = getFirstForceProbability(activeDate, activeLeadingParty?.party);
+  $: activeScenarios = getScenariosForDate(activeDate, scenarioSeries);
+  $: activeFirstForceProbability = getFirstForceProbability(
+    activeDate,
+    activeLeadingParty?.party,
+    firstForceProbabilities
+  );
 
   onMount(async () => {
     try {
@@ -115,8 +119,8 @@
     goto(`/provincias?provincia=${code}`);
   }
 
-  function getTrendPartiesForDate(date: string) {
-    return trendPoints
+  function getTrendPartiesForDate(date: string, points: NationalTrendPoint[]) {
+    return points
       .filter((point) => point.date === date && point.isElectoral)
       .sort(
         (a, b) =>
@@ -126,16 +130,16 @@
       .slice(0, 5);
   }
 
-  function getScenariosForDate(date: string | null): ScenarioSummary[] {
+  function getScenariosForDate(date: string | null, scenarios: NationalScenarioSummary[]): ScenarioSummary[] {
     const emptyScenarios = emptyScenarioSummaries();
     if (!date) return emptyScenarios;
 
-    const rows = scenarioSeries.filter((scenario) => scenario.date === date);
+    const rows = scenarios.filter((scenario) => scenario.date === date);
     return emptyScenarios.map((scenario) => rows.find((row) => row.id === scenario.id) ?? scenario);
   }
 
-  function getInitialCardDate(preferredDate: string | null): string | null {
-    const availableDates = [...new Set(scenarioSeries.map((scenario) => scenario.date))].sort();
+  function getInitialCardDate(preferredDate: string | null, scenarios: NationalScenarioSummary[]): string | null {
+    const availableDates = [...new Set(scenarios.map((scenario) => scenario.date))].sort();
     if (!availableDates.length) return preferredDate;
     if (preferredDate && availableDates.includes(preferredDate)) return preferredDate;
     if (preferredDate) {
@@ -145,9 +149,13 @@
     return availableDates.at(-1) ?? null;
   }
 
-  function getFirstForceProbability(date: string | null, partyId: string | undefined): number | null {
+  function getFirstForceProbability(
+    date: string | null,
+    partyId: string | undefined,
+    probabilities: FirstForceProbability[]
+  ): number | null {
     if (!date || !partyId) return null;
-    return firstForceProbabilities.find((row) => row.date === date && row.party === partyId)?.probability ?? null;
+    return probabilities.find((row) => row.date === date && row.party === partyId)?.probability ?? null;
   }
 
   function formatProbability(value: number | null): string {
@@ -202,7 +210,7 @@
             {activeLeadingParty?.label ?? 'n/d'}
           </p>
           <p class="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
-            {formatPercent(activeLeadingParty?.voteShareMean)} y {formatSeats(activeLeadingParty?.seatsMean)} escaños medios.
+            {formatPercent(activeLeadingParty?.voteShareMean)} y {formatSeats(activeLeadingParty?.seatsMean)} escaños.
           </p>
           <p class="mt-2 text-xs text-[var(--color-text-secondary)]">
             Prob. primera fuerza: {formatProbability(activeFirstForceProbability)}
@@ -223,7 +231,11 @@
             Serie historica de estimaciones para partidos con candidatura estatal.
           </p>
         </div>
-        <NationalEvolutionChart points={trendPoints} onHoverDate={(date) => (hoveredTrendDate = date)} />
+        <NationalEvolutionChart
+          points={trendPoints}
+          previousResults={previousNationalResults}
+          onHoverDate={(date) => (hoveredTrendDate = date)}
+        />
       </section>
 
       <div class="mt-8 grid gap-6 lg:grid-cols-2">

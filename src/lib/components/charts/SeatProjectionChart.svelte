@@ -94,6 +94,6 @@
       </text>
     {/each}
 
-    <text x={chartWidth - rightPad - 5} y={chartHeight - -10} text-anchor="end" font-size="12">Escanos medios</text>
+    <text x={chartWidth - rightPad - 5} y={chartHeight - -10} text-anchor="end" font-size="12">Escanos</text>
   </svg>
 </div>
