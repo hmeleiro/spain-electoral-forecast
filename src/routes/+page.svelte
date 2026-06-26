@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import NationalEvolutionChart from '$lib/components/charts/NationalEvolutionChart.svelte';
   import ProbabilityCards from '$lib/components/charts/ProbabilityCards.svelte';
+  import SeatBalanceBar from '$lib/components/charts/SeatBalanceBar.svelte';
   import SeatProjectionChart from '$lib/components/charts/SeatProjectionChart.svelte';
   import SimulationHistogram from '$lib/components/charts/SimulationHistogram.svelte';
   import VoteShareChart from '$lib/components/charts/VoteShareChart.svelte';
@@ -29,6 +30,7 @@
     FirstForceProbability,
     NationalScenarioSummary,
     NationalTrendPoint,
+    PartyEstimate,
     PreviousProvinceResult,
     PreviousResult,
     ProvinceEstimate,
@@ -63,6 +65,7 @@
   $: initialCardDate = getInitialCardDate(national?.date ?? metadata?.latestDate ?? null, scenarioSeries);
   $: activeDate = hoveredTrendDate ?? initialCardDate;
   $: activeTrendParties = activeDate ? getTrendPartiesForDate(activeDate, trendPoints) : [];
+  $: activeSeatBalanceParties = getSeatBalancePartiesForDate(activeDate, trendPoints, electoralNational);
   $: activeLeadingParty = activeTrendParties[0] ?? leadingParty;
   $: activeScenarios = getScenariosForDate(activeDate, scenarioSeries);
   $: activeFirstForceProbability = getFirstForceProbability(
@@ -128,6 +131,26 @@
           (b.seatsMean ?? -1) - (a.seatsMean ?? -1)
       )
       .slice(0, 5);
+  }
+
+  function getSeatBalancePartiesForDate(
+    date: string | null,
+    points: NationalTrendPoint[],
+    fallbackParties: PartyEstimate[]
+  ) {
+    if (!date) return fallbackParties;
+
+    const rows = points
+      .filter((point) => point.date === date && point.isElectoral)
+      .map((point) => ({
+        party: point.party,
+        label: point.label,
+        color: point.color,
+        seatsMean: point.seatsMean,
+        isElectoral: point.isElectoral
+      }));
+
+    return rows.length ? rows : fallbackParties;
   }
 
   function getScenariosForDate(date: string | null, scenarios: NationalScenarioSummary[]): ScenarioSummary[] {
@@ -223,6 +246,13 @@
           <ProbabilityCards scenarios={activeScenarios} />
         </div>
       </div>
+
+      <section class="panel mt-4 p-5">
+        <div class="mb-4">
+          <h2 class="text-xl font-semibold text-[var(--color-text)]">Balance de escaños</h2>
+        </div>
+        <SeatBalanceBar parties={activeSeatBalanceParties} />
+      </section>
 
       <section class="panel mt-8 p-5 md:p-6">
         <div class="mb-5">
