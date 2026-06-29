@@ -31,7 +31,7 @@ Para produccion en Cloudflare Pages, configura:
 
 ```env
 PUBLIC_DATA_BASE_URL=https://data.spainelectoralproject.com/spain-electoral-forecast
-PUBLIC_DATA_VERSION=2026-06-29-1
+PUBLIC_DATA_VERSION=
 PUBLIC_DATA_NO_CACHE=false
 ```
 
@@ -49,26 +49,41 @@ datos:
 
 - Parquet
 - `provincias_spain.geojson`
+- `data-version.json`
 - JSON derivados bajo `derived/`
 
 ## Cache de datos
 
-La aplicacion anade `PUBLIC_DATA_VERSION` como query string a todas las URLs de
-datos. Por ejemplo, con:
+La aplicacion intenta leer `data-version.json` desde el mismo prefijo de datos
+antes de cargar Parquet, GeoJSON o JSON derivados. Ese manifest se pide con
+`cache: no-store` y con un query string temporal para evitar caches intermedios.
 
-```env
-PUBLIC_DATA_VERSION=2026-06-29-1
+Ejemplo:
+
+```json
+{
+  "version": "2026-06-29-1"
+}
 ```
 
-la web leera:
+Con ese manifest, la web leera:
 
 ```text
 https://data.spainelectoralproject.com/spain-electoral-forecast/estimaciones_nacionales.parquet?v=2026-06-29-1
 ```
 
-Cuando subas nuevos Parquet/JSON/GeoJSON a R2, cambia `PUBLIC_DATA_VERSION` y
-redepliega Pages. Asi Cloudflare y el navegador ven una URL nueva y no reutilizan
-la version cacheada anterior.
+Flujo recomendado al actualizar datos:
+
+```text
+1. Regenera/sube los Parquet, JSON derivados y GeoJSON a R2.
+2. Sube data-version.json con una version nueva.
+3. No cambies variables de Pages ni redepliegues la web.
+```
+
+`PUBLIC_DATA_VERSION` queda como override manual opcional. Si tiene valor, la app
+lo usa antes que `data-version.json`. Puede ser util para probar o forzar una
+version concreta desde el build de Pages, pero no es el camino recomendado para
+actualizaciones ordinarias de datos.
 
 Si prefieres priorizar siempre la frescura de datos, configura:
 
@@ -80,11 +95,15 @@ Con ese modo, cada carga de la app genera un `?v=...` nuevo para los ficheros de
 datos. Es lo mas robusto contra cache, pero puede aumentar trafico y latencia
 porque los Parquet no se reaprovechan tan bien desde CDN.
 
-Recomendacion adicional en Cloudflare: para el dominio/prefijo de datos en R2,
-configura `Cache-Control: no-cache, max-age=0` o una Cache Rule equivalente si
-quieres que Cloudflare revalide con origen antes de servir datos. Evita aplicar
-esta politica a los assets de Pages (`.js`, `.css`, imagenes de la app), que si
-deben mantener cache largo.
+Recomendacion adicional en Cloudflare: asegura que la cache key del dominio
+de datos respeta el query string. Si aplicas reglas de cache propias, no ignores
+`?v=...` para el prefijo de datos.
+
+Puedes configurar `Cache-Control: no-cache, max-age=0` o una Cache Rule
+equivalente solo para `data-version.json` si quieres reforzar la revalidacion del
+manifest. Evita aplicar esta politica a los assets de Pages (`.js`, `.css`,
+imagenes de la app), que si deben mantener cache largo.
+
 
 ## Datos en R2
 
@@ -97,6 +116,7 @@ estimaciones_provinciales.parquet
 escenarios_nacionales.parquet
 first_force_probability.parquet
 provincias_spain.geojson
+data-version.json
 results_prev.parquet
 results_prev_prov.parquet
 simulaciones_nacionales.parquet

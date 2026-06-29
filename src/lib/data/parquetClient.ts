@@ -29,7 +29,9 @@ async function registerParquetFile(db: duckdb.AsyncDuckDB, fileName: string): Pr
   if (!registeredFiles.has(fileName)) {
     registeredFiles.set(
       fileName,
-      db.registerFileURL(fileName, dataFileUrl(fileName), duckdb.DuckDBDataProtocol.HTTP, false)
+      dataFileUrl(fileName).then((url) =>
+        db.registerFileURL(fileName, url, duckdb.DuckDBDataProtocol.HTTP, false)
+      )
     );
   }
 
@@ -66,6 +68,6 @@ export async function queryRows<T>(sql: string): Promise<T[]> {
   }
 }
 
-export function parquetPath(fileName: string): string {
+export function parquetPath(fileName: string): Promise<string> {
   return dataFileUrl(fileName);
 }

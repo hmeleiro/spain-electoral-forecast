@@ -30,7 +30,7 @@ import {
 } from '$lib/data/transforms';
 
 async function loadJson<T>(fileName: string): Promise<T[]> {
-  const response = await fetch(derivedDataFileUrl(fileName));
+  const response = await fetch(await derivedDataFileUrl(fileName));
   if (!response.ok) {
     throw new Error(`No se pudo cargar fallback JSON ${fileName}: ${response.status}`);
   }

@@ -213,7 +213,7 @@ export async function loadProvinceMapCollection(
   baselineEstimates: ProvinceEstimate[] = []
 ): Promise<ProvinceMapCollection> {
   try {
-    const response = await fetch(dataFileUrl('provincias_spain.geojson'));
+    const response = await fetch(await dataFileUrl('provincias_spain.geojson'));
     if (!response.ok) throw new Error(`GeoJSON no disponible: ${response.status}`);
     const geoJson = (await response.json()) as GeoJSON.FeatureCollection;
     return enrichProvinceGeoJson(geoJson, estimates, baselineEstimates);

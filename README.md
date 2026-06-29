@@ -23,12 +23,16 @@ la primera version mantiene copias en `static/data/`:
 - `results_prev_prov.parquet`
 - `simulaciones_nacionales.parquet`
 - `provincias_spain.geojson`
+- `data-version.json`
 
 La capa `src/lib/data/` normaliza los nombres reales de columnas a tipos internos antes de que
 los componentes visuales reciban datos.
 
 `static/data/derived/` contiene JSON generado desde esos Parquet. La app lo usa solo como
 fallback real si DuckDB-WASM no puede abrir los Parquet en el navegador; no son datos mock.
+
+`data-version.json` permite invalidar cache sin redeplegar la web. La app lo lee
+con `no-store` y anade su `version` como `?v=...` al resto de ficheros de datos.
 
 Para regenerar esos JSON derivados:
 
@@ -59,13 +63,25 @@ PUBLIC_DATA_VERSION=
 PUBLIC_DATA_NO_CACHE=false
 ```
 
-`PUBLIC_DATA_VERSION` se anade como query string a todos los ficheros de datos
-(`?v=...`). En produccion, cambialo cuando subas nuevos Parquet/JSON/GeoJSON a
-R2 para que Cloudflare y el navegador pidan URLs nuevas. Por ejemplo:
+Flujo recomendado para actualizar datos en produccion:
 
-```bash
-PUBLIC_DATA_VERSION=2026-06-29-1
+```text
+1. Genera/sube los nuevos Parquet, JSON derivados y GeoJSON a R2.
+2. Sube tambien data-version.json con una version nueva.
+3. No hace falta cambiar variables ni redeplegar Cloudflare Pages.
 ```
+
+Ejemplo de `data-version.json`:
+
+```json
+{
+  "version": "2026-06-29-1"
+}
+```
+
+`PUBLIC_DATA_VERSION` queda como override manual opcional: si tiene valor, manda
+sobre `data-version.json` y se anade como query string a todos los ficheros de
+datos (`?v=...`).
 
 Si necesitas que cada recarga del usuario fuerce datos frescos, activa
 `PUBLIC_DATA_NO_CACHE=true`. Esto evita practicamente todo cache de datos, pero
@@ -83,7 +99,6 @@ Framework preset: None
 Build command: npm run build
 Output directory: build
 PUBLIC_DATA_BASE_URL=https://data.spainelectoralproject.com/spain-electoral-forecast
-PUBLIC_DATA_VERSION=2026-06-29-1
 ```
 
 En local, `PUBLIC_DATA_BASE_URL=/data` sigue leyendo de `static/data/`.
