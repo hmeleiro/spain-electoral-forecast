@@ -52,7 +52,7 @@
   }
 
   function deltaTone(delta: string): string {
-    if (delta.startsWith('+')) return 'text-[#2166ac]';
+    if (delta.startsWith('+')) return 'text-[#4c956c]';
     if (delta.startsWith('-')) return 'text-[#b2182b]';
     return 'text-[#6f6860]';
   }
