@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getPartyConfig, isElectoralParty } from '$lib/config/parties';
+import { compareProvinceCodesByCommunity, getProvinceCommunityName } from '$lib/data/provinces';
 import type { RawNationalEstimateRow, RawProvinceEstimateRow } from '$lib/data/schema';
 import {
   buildProvinceMapFeatures,
@@ -92,5 +93,14 @@ describe('estimate transforms', () => {
 
     expect(national.find((row) => row.party === 'PP')?.voteShare).toBe(33.3);
     expect(provincial.find((row) => row.party === 'PP')?.voteShare).toBe(35.2);
+  });
+});
+
+describe('province metadata', () => {
+  it('sorts province codes by autonomous community', () => {
+    const sorted = ['28', '50', '11', '15', '04'].sort(compareProvinceCodesByCommunity);
+
+    expect(sorted).toEqual(['04', '11', '50', '15', '28']);
+    expect(getProvinceCommunityName('11')).toBe('Andalucia');
   });
 });

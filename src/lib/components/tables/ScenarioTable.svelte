@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { compareProvinceCodesByCommunity, getProvinceCommunityName } from '$lib/data/provinces';
   import type { PreviousProvinceResult, ProvinceEstimate } from '$lib/data/schema';
   import { formatPercent, formatSeats } from '$lib/utils/format';
 
@@ -33,13 +34,14 @@
       return {
         provinceCode: winner?.provinceCode ?? '',
         provinceName: winner?.provinceName ?? '',
+        communityName: getProvinceCommunityName(winner?.provinceCode),
         winner,
         previousWinner: winner ? previousByProvinceParty.get(`${winner.provinceCode}:${winner.party}`) : undefined,
         runnerUp,
         previousRunnerUp: runnerUp ? previousByProvinceParty.get(`${runnerUp.provinceCode}:${runnerUp.party}`) : undefined
       };
     })
-    .sort((a, b) => a.provinceCode.localeCompare(b.provinceCode))
+    .sort((a, b) => compareProvinceCodesByCommunity(a.provinceCode, b.provinceCode))
     .slice(0, limit);
 
   function seatDelta(current: number | null | undefined, previous: number | null | undefined): string {
@@ -64,6 +66,7 @@
   <table class="w-full border-collapse text-sm">
     <thead>
       <tr class="border-b border-[#c9c0b3] text-left text-xs uppercase tracking-wide text-[#6f6860]">
+        <th class="py-2 pr-4">Comunidad</th>
         <th class="py-2 pr-4">Provincia</th>
         <th class="py-2 pr-4">Primera fuerza</th>
         <th class="py-2 pr-4 text-right">Voto</th>
@@ -77,6 +80,7 @@
         {@const winnerDelta = seatDelta(row.winner?.seatsMean, row.previousWinner?.seats)}
         {@const runnerUpDelta = seatDelta(row.runnerUp?.seatsMean, row.previousRunnerUp?.seats)}
         <tr class="border-b border-[#e6ded2]">
+          <td class="py-2.5 pr-4 text-[#5e5a54]">{row.communityName}</td>
           <td class="py-2.5 pr-4 font-semibold text-[#171717]">{row.provinceName}</td>
           <td class="py-2.5 pr-4">
             <span class="inline-flex items-center gap-2">

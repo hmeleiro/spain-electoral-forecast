@@ -5,13 +5,12 @@
   import { formatPercent } from '$lib/utils/format';
 
   export let collection: ProvinceMapCollection;
-  export let metric: ProvinceMapMetric = 'winner';
   export let selectedProvinceCode = '';
   export let onProvinceClick: (provinceCode: string) => void = () => {};
 
   let mapNode: HTMLDivElement;
   let mounted = false;
-  let selectedMetric = metric;
+  const selectedMetric: ProvinceMapMetric = 'voteShare';
   let map: import('maplibre-gl').Map | null = null;
   let popup: import('maplibre-gl').Popup | null = null;
 
@@ -170,21 +169,18 @@
     };
   });
 
-  $: if (mounted && selectedMetric) updateMapData();
-  $: if (mounted && selectedProvinceCode) updateMapData();
-  $: metric = selectedMetric;
+  $: if (mounted) {
+    collection;
+    selectedProvinceCode;
+    updateMapData();
+  }
 </script>
 
 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
   <div>
-    <p class="text-sm font-bold text-[#171717]">Mapa provincial</p>
-    <p class="text-xs text-[var(--color-text-secondary)]">Proyección provincial de la estimación.</p>
+    <p class="text-sm font-bold text-[#171717]">Proyección provincial</p>
+    <p class="text-xs text-[var(--color-text-secondary)]">Haz clic en una provincia para ver el detalle.</p>
   </div>
-  <select bind:value={selectedMetric} class="rounded border border-[#c9c0b3] bg-white px-2 py-1 text-sm">
-    <option value="winner">Primera fuerza por voto</option>
-    <option value="voteShare">Porcentaje del ganador</option>
-    <option value="change">Cambio</option>
-  </select>
 </div>
 
 <div bind:this={mapNode} class="h-[430px] w-full overflow-hidden rounded border border-[#ded7cc] bg-[#fffaf2]"></div>
