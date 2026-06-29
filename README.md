@@ -55,7 +55,21 @@ Variables opcionales:
 
 ```bash
 PUBLIC_DATA_BASE_URL=/data
+PUBLIC_DATA_VERSION=
+PUBLIC_DATA_NO_CACHE=false
 ```
+
+`PUBLIC_DATA_VERSION` se anade como query string a todos los ficheros de datos
+(`?v=...`). En produccion, cambialo cuando subas nuevos Parquet/JSON/GeoJSON a
+R2 para que Cloudflare y el navegador pidan URLs nuevas. Por ejemplo:
+
+```bash
+PUBLIC_DATA_VERSION=2026-06-29-1
+```
+
+Si necesitas que cada recarga del usuario fuerce datos frescos, activa
+`PUBLIC_DATA_NO_CACHE=true`. Esto evita practicamente todo cache de datos, pero
+tambien reduce el beneficio de CDN para los Parquet grandes.
 
 ## Despliegue en Cloudflare Pages
 
@@ -69,6 +83,7 @@ Framework preset: None
 Build command: npm run build
 Output directory: build
 PUBLIC_DATA_BASE_URL=https://data.spainelectoralproject.com/spain-electoral-forecast
+PUBLIC_DATA_VERSION=2026-06-29-1
 ```
 
 En local, `PUBLIC_DATA_BASE_URL=/data` sigue leyendo de `static/data/`.

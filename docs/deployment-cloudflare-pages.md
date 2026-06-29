@@ -31,12 +31,16 @@ Para produccion en Cloudflare Pages, configura:
 
 ```env
 PUBLIC_DATA_BASE_URL=https://data.spainelectoralproject.com/spain-electoral-forecast
+PUBLIC_DATA_VERSION=2026-06-29-1
+PUBLIC_DATA_NO_CACHE=false
 ```
 
 Para desarrollo local, el valor por defecto sigue siendo:
 
 ```env
 PUBLIC_DATA_BASE_URL=/data
+PUBLIC_DATA_VERSION=
+PUBLIC_DATA_NO_CACHE=false
 ```
 
 En el despliegue estatico, Cloudflare Pages inyecta esta variable durante el
@@ -46,6 +50,41 @@ datos:
 - Parquet
 - `provincias_spain.geojson`
 - JSON derivados bajo `derived/`
+
+## Cache de datos
+
+La aplicacion anade `PUBLIC_DATA_VERSION` como query string a todas las URLs de
+datos. Por ejemplo, con:
+
+```env
+PUBLIC_DATA_VERSION=2026-06-29-1
+```
+
+la web leera:
+
+```text
+https://data.spainelectoralproject.com/spain-electoral-forecast/estimaciones_nacionales.parquet?v=2026-06-29-1
+```
+
+Cuando subas nuevos Parquet/JSON/GeoJSON a R2, cambia `PUBLIC_DATA_VERSION` y
+redepliega Pages. Asi Cloudflare y el navegador ven una URL nueva y no reutilizan
+la version cacheada anterior.
+
+Si prefieres priorizar siempre la frescura de datos, configura:
+
+```env
+PUBLIC_DATA_NO_CACHE=true
+```
+
+Con ese modo, cada carga de la app genera un `?v=...` nuevo para los ficheros de
+datos. Es lo mas robusto contra cache, pero puede aumentar trafico y latencia
+porque los Parquet no se reaprovechan tan bien desde CDN.
+
+Recomendacion adicional en Cloudflare: para el dominio/prefijo de datos en R2,
+configura `Cache-Control: no-cache, max-age=0` o una Cache Rule equivalente si
+quieres que Cloudflare revalide con origen antes de servir datos. Evita aplicar
+esta politica a los assets de Pages (`.js`, `.css`, imagenes de la app), que si
+deben mantener cache largo.
 
 ## Datos en R2
 
