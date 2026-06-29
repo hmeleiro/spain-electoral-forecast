@@ -33,8 +33,8 @@
   };
 
   const blockDefinitions = [
-    { id: 'right', label: 'Derecha', color: '#2878b8', parties: ['PP', 'VOX', 'UPN'] },
-    { id: 'left', label: 'Izquierda', color: '#d73027', parties: ['PSOE', 'SUMAR', 'Podemos'] },
+    { id: 'right', label: 'Derecha', color: '#006a8e', parties: ['PP', 'VOX', 'UPN'] },
+    { id: 'left', label: 'Izquierda', color: '#b1283a', parties: ['PSOE', 'SUMAR', 'Podemos'] },
     // { id: 'regional', label: 'Territoriales', color: '#0d9488', parties: ['ERC', 'Junts', 'PNV', 'EH Bildu', 'BNG', 'CC'] }
   ];
 
